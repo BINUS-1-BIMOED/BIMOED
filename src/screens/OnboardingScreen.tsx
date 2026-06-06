@@ -16,22 +16,22 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const slides = [
     {
       icon: '🌊',
-      title: 'Deteksi Banjir Real-Time',
-      desc: 'AI kami menganalisis data sensor, cuaca BMKG, dan laporan komunitas secara bersamaan untuk memberi peringatan dini yang akurat.',
+      title: 'Real-Time Flood Detection',
+      desc: 'Our AI analyzes sensor data, BMKG weather, and community reports simultaneously to deliver accurate early warnings.',
       color: '#0066FF',
       bg: 'rgba(0,102,255,0.08)'
     },
     {
       icon: '🗺️',
-      title: 'Rute Evakuasi Offline',
-      desc: 'Peta dan rute evakuasi tersimpan di perangkat Anda. Tetap berfungsi meski tanpa koneksi internet.',
+      title: 'Offline Evacuation Routes',
+      desc: 'Maps and evacuation routes are stored on your device. They still work without an internet connection.',
       color: '#00C48C',
       bg: 'rgba(0,196,140,0.08)'
     },
     {
       icon: '🤖',
-      title: 'Validasi Cerdas',
-      desc: 'Setiap laporan komunitas divalidasi AI sebelum disebarkan, mencegah misinformasi yang bisa membahayakan jiwa.',
+      title: 'Smart Validation',
+      desc: 'Every community report is AI-validated before being shared, preventing misinformation that could endanger lives.',
       color: '#FF8C00',
       bg: 'rgba(255,140,0,0.08)'
     },
@@ -45,7 +45,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0A0E1A',
+        background: 'var(--bg)',
         padding: '32px'
       }}>
         <div style={{ animation: 'float 3s ease infinite' }}>
@@ -74,7 +74,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             Flood Early Warning System
           </p>
         </div>
-        {/* Loading dots */}
         <div style={{ display: 'flex', gap: '6px', marginTop: '48px' }}>
           {[0, 1, 2].map(i => (
             <div
@@ -98,10 +97,10 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       flex: 1,
       display: 'flex',
       flexDirection: 'column',
-      padding: '32px 24px 40px',
+      padding: '20px 24px 32px',
+      overflowY: 'auto',
       background: 'var(--bg)'
     }}>
-      {/* Skip */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '32px' }}>
         <button
           onClick={onComplete}
@@ -111,11 +110,10 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             cursor: 'pointer'
           }}
         >
-          Lewati
+          Skip
         </button>
       </div>
 
-      {/* Illustration area */}
       <div
         style={{
           flex: 1,
@@ -161,7 +159,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         </div>
       </div>
 
-      {/* Dots */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
         {slides.map((_, i) => (
           <div
@@ -179,13 +176,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         ))}
       </div>
 
-      {/* CTA */}
       {slide < slides.length - 1 ? (
         <button
           className="btn-primary"
           onClick={() => setSlide(slide + 1)}
         >
-          Selanjutnya →
+          Next →
         </button>
       ) : (
         <button
@@ -193,7 +189,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           style={{ background: `linear-gradient(135deg, var(--primary), var(--primary-dark))`, boxShadow: 'var(--shadow-glow)' }}
           onClick={onComplete}
         >
-          🌊 Mulai Sekarang
+          🌊 Get Started
         </button>
       )}
     </div>

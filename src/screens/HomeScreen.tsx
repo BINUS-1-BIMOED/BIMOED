@@ -4,6 +4,16 @@ interface HomeScreenProps {
   onNavigate: (screen: string) => void
 }
 
+const ActionIcon = ({ type }: { type: string }) => {
+  const icons: Record<string, React.ReactNode> = {
+    route: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>,
+    report: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    safe: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    contacts: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+  }
+  return <>{icons[type]}</>
+}
+
 export default function HomeScreen({ onNavigate }: HomeScreenProps) {
   const [riskLevel, setRiskLevel] = useState(78)
   const [rainfallData] = useState([42, 58, 35, 67, 89, 78, 95, 88, 72, 65, 80, 92])
@@ -22,17 +32,17 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
   }, [])
 
   const getRiskColor = (level: number) => {
-    if (level >= 80) return '#FF3B3B'
-    if (level >= 60) return '#FF8C00'
-    if (level >= 40) return '#FFCE00'
-    return '#00C48C'
+    if (level >= 80) return 'var(--danger)'
+    if (level >= 60) return 'var(--warning)'
+    if (level >= 40) return '#FBBF24'
+    return 'var(--success)'
   }
 
   const getRiskLabel = (level: number) => {
-    if (level >= 80) return 'KRITIS'
-    if (level >= 60) return 'TINGGI'
-    if (level >= 40) return 'SEDANG'
-    return 'RENDAH'
+    if (level >= 80) return 'Critical'
+    if (level >= 60) return 'High'
+    if (level >= 40) return 'Moderate'
+    return 'Low'
   }
 
   const getRiskClass = (level: number) => {
@@ -46,266 +56,157 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
   const maxRain = Math.max(...rainfallData)
 
   const alerts = [
-    { id: 1, title: 'Sungai Deli Meluap', location: 'Medan Helvetia', time: '12 mnt', severity: 'critical', icon: '🌊' },
-    { id: 2, title: 'Curah Hujan Ekstrem', location: 'Medan Denai', time: '28 mnt', severity: 'high', icon: '⛈️' },
-    { id: 3, title: 'Longsor Terdeteksi', location: 'Medan Tuntungan', time: '45 mnt', severity: 'high', icon: '⚠️' },
+    { id: 1, title: 'Deli River Overflowing', location: 'Medan Helvetia', time: '12 min', severity: 'critical' },
+    { id: 2, title: 'Extreme Rainfall', location: 'Medan Denai', time: '28 min', severity: 'high' },
+    { id: 3, title: 'Landslide Detected', location: 'Medan Tuntungan', time: '45 min', severity: 'high' },
+  ]
+
+  const actions = [
+    { label: 'Evacuation Route', type: 'route', screen: 'route' },
+    { label: 'Report Incident', type: 'report', screen: 'report' },
+    { label: 'Safe Zone', type: 'safe', screen: 'safe' },
+    { label: 'Emergency Contacts', type: 'contacts', screen: 'contacts' },
   ]
 
   return (
-    <div className="screen" style={{ padding: '16px' }}>
-      {/* Header */}
-      <div className="animate-fade-in" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Lokasi Aktif</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <svg width="14" height="14" fill="none" stroke="var(--primary)" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                <circle cx="12" cy="9" r="2.5"/>
-              </svg>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>Medan, Sumatera Utara</span>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate('alert')}
-            style={{
-              position: 'relative',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '14px',
-              width: '44px', height: '44px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--text)'
-            }}
-          >
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span style={{
-              position: 'absolute', top: '-4px', right: '-4px',
-              width: '16px', height: '16px',
-              background: 'var(--danger)',
-              borderRadius: '50%',
-              fontSize: '9px', fontWeight: 800, color: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid var(--bg)'
-            }}>3</span>
-          </button>
+    <div className="page">
+      <div className="page-header animate-fade-in">
+        <div>
+          <p className="page-eyebrow">Active location</p>
+          <h1 className="page-title">Medan, North Sumatra</h1>
         </div>
+        <button className="icon-btn" onClick={() => onNavigate('alert')} aria-label="Alerts">
+          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span className="icon-btn-badge">3</span>
+        </button>
       </div>
 
-      {/* Main Risk Card */}
       <div
-        className="animate-fade-in"
+        className="risk-hero card animate-fade-in"
         style={{
-          background: `linear-gradient(135deg, ${color}18, ${color}08)`,
-          border: `1px solid ${color}30`,
-          borderRadius: '24px',
-          padding: '24px',
-          marginBottom: '16px',
-          position: 'relative',
-          overflow: 'hidden',
+          background: `linear-gradient(160deg, color-mix(in srgb, ${color} 8%, var(--bg-card)), var(--bg-card))`,
+          borderColor: `color-mix(in srgb, ${color} 20%, var(--border))`,
           animationDelay: '0.05s'
         }}
         onClick={() => onNavigate('map')}
       >
-        {/* Background glow */}
-        <div style={{
-          position: 'absolute', top: '-40px', right: '-40px',
-          width: '160px', height: '160px',
-          background: `${color}20`,
-          borderRadius: '50%',
-          filter: 'blur(40px)',
-          pointerEvents: 'none'
-        }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>Risiko Banjir Saat Ini</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{ fontSize: '56px', fontWeight: 800, color: color, fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-2px' }}>{Math.round(riskLevel)}</span>
-              <span style={{ fontSize: '20px', fontWeight: 600, color: color, opacity: 0.7 }}>%</span>
+            <p className="risk-hero-label">Flood risk</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+              <span className="risk-hero-value" style={{ color }}>{Math.round(riskLevel)}</span>
+              <span className="risk-hero-unit" style={{ color }}>%</span>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
             <span className={`risk-badge ${getRiskClass(riskLevel)}`}>
               <span style={{
-                width: '6px', height: '6px',
-                borderRadius: '50%',
+                width: '5px', height: '5px', borderRadius: '50%',
                 background: color,
                 animation: riskLevel >= 60 ? 'pulse-dot 1.5s ease infinite' : 'none'
               }} />
               {getRiskLabel(riskLevel)}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              {lastUpdate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+              Updated {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         </div>
 
-        {/* Risk gauge bar */}
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ margin: '16px 0' }}>
           <div className="progress-bar">
-            <div
-              className="progress-fill"
-              style={{
-                width: `${riskLevel}%`,
-                background: `linear-gradient(90deg, ${color}80, ${color})`
-              }}
-            />
+            <div className="progress-fill" style={{ width: `${riskLevel}%`, background: color }}/>
           </div>
         </div>
 
-        {/* Mini stats */}
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div className="risk-stats">
           {[
-            { label: 'Curah Hujan', value: '142mm', icon: '🌧' },
-            { label: 'Ketinggian Air', value: `${waterLevel}m`, icon: '📊' },
-            { label: 'Zona Bahaya', value: '3 Area', icon: '⚠️' },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                flex: 1,
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: '12px',
-                padding: '10px 8px',
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: '16px', marginBottom: '4px' }}>{stat.icon}</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{stat.value}</div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{stat.label}</div>
+            { label: 'Rainfall', value: '142mm' },
+            { label: 'Water level', value: `${waterLevel}m` },
+            { label: 'Danger zones', value: '3 areas' },
+          ].map(stat => (
+            <div key={stat.label} className="risk-stat">
+              <div className="risk-stat-value">{stat.value}</div>
+              <div className="risk-stat-label">{stat.label}</div>
             </div>
           ))}
         </div>
-
-        {/* Tap hint */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '14px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Ketuk untuk lihat peta</span>
-          <svg width="12" height="12" fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </div>
       </div>
 
-      {/* Rainfall Sparkline Card */}
-      <div className="card animate-fade-in" style={{ marginBottom: '16px', animationDelay: '0.1s' }}>
+      <div className="card animate-fade-in" style={{ marginBottom: '20px', animationDelay: '0.1s' }}>
         <div className="section-header">
-          <span className="section-title">📈 Curah Hujan 12 Jam</span>
-          <span className="chip" style={{ fontSize: '11px', padding: '3px 10px' }}>Live</span>
+          <span className="section-title">12-hour rainfall</span>
+          <span className="chip-live">Live</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '52px' }}>
+        <div className="sparkline">
           {rainfallData.map((val, i) => {
             const h = (val / maxRain) * 100
             const isLast = i === rainfallData.length - 1
             return (
               <div
                 key={i}
-                style={{
-                  flex: 1,
-                  height: `${h}%`,
-                  background: isLast
-                    ? 'var(--primary)'
-                    : `linear-gradient(180deg, rgba(0,102,255,${0.3 + i * 0.05}), rgba(0,102,255,0.15))`,
-                  borderRadius: '4px 4px 2px 2px',
-                  transition: 'height 0.5s ease',
-                  position: 'relative'
-                }}
-              >
-                {isLast && (
-                  <div style={{
-                    position: 'absolute', top: '-20px', left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    fontSize: '9px', fontWeight: 700,
-                    padding: '2px 5px',
-                    borderRadius: '4px',
-                    whiteSpace: 'nowrap'
-                  }}>{val}mm</div>
-                )}
-              </div>
+                className={`sparkline-bar ${isLast ? 'active' : ''}`}
+                style={{ height: `${h}%` }}
+              />
             )
           })}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>12 jam lalu</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Sekarang</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>12h ago</span>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Now · {rainfallData[rainfallData.length - 1]}mm</span>
         </div>
       </div>
 
-      {/* Active Alerts */}
-      <div className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
+      <div className="animate-fade-in" style={{ marginBottom: '20px', animationDelay: '0.15s' }}>
         <div className="section-header">
-          <span className="section-title">🚨 Peringatan Aktif</span>
-          <button className="section-link" onClick={() => onNavigate('alert')}>Lihat Semua</button>
+          <span className="section-title">Active alerts</span>
+          <button className="section-link" onClick={() => onNavigate('alert')}>View all</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {alerts.map((alert, i) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {alerts.map(alert => (
             <div
               key={alert.id}
-              className="card"
-              style={{
-                padding: '14px 16px',
-                display: 'flex', alignItems: 'center', gap: '14px',
-                cursor: 'pointer',
-                border: alert.severity === 'critical' ? '1px solid rgba(255,59,59,0.2)' : '1px solid var(--border)',
-                animationDelay: `${0.15 + i * 0.05}s`
-              }}
+              className="list-item list-item-interactive list-item-accent"
+              style={{ '--accent': alert.severity === 'critical' ? 'var(--danger)' : 'var(--warning)' } as React.CSSProperties}
               onClick={() => onNavigate('alert')}
             >
-              <div style={{
-                width: '42px', height: '42px',
-                borderRadius: '12px',
-                background: alert.severity === 'critical' ? 'var(--danger-bg)' : 'var(--warning-bg)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '20px', flexShrink: 0
-              }}>{alert.icon}</div>
+              <div className="list-icon">
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                  {alert.severity === 'critical'
+                    ? <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>
+                    : <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></>
+                  }
+                </svg>
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', marginBottom: '3px' }}>{alert.title}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>📍 {alert.location}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>{alert.title}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{alert.location}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <span className={`risk-badge ${alert.severity}`} style={{ fontSize: '10px', padding: '3px 8px', marginBottom: '4px', display: 'inline-flex' }}>
-                  {alert.severity === 'critical' ? 'Kritis' : 'Tinggi'}
+                <span className={`risk-badge ${alert.severity}`} style={{ fontSize: '9px', padding: '3px 7px' }}>
+                  {alert.severity === 'critical' ? 'Critical' : 'High'}
                 </span>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{alert.time} lalu</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>{alert.time}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="animate-fade-in" style={{ marginTop: '20px', marginBottom: '8px', animationDelay: '0.3s' }}>
+      <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <div className="section-header">
-          <span className="section-title">Aksi Cepat</span>
+          <span className="section-title">Quick actions</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {[
-            { label: 'Rute Evakuasi', icon: '🗺️', color: '#0066FF', screen: 'route' },
-            { label: 'Lapor Kejadian', icon: '📢', color: '#FF8C00', screen: 'report' },
-            { label: 'Zona Aman', icon: '🏥', color: '#00C48C', screen: 'safe' },
-            { label: 'Kontak Darurat', icon: '📞', color: '#FF3B3B', screen: 'contacts' },
-          ].map((action) => (
-            <button
-              key={action.label}
-              onClick={() => onNavigate(action.screen)}
-              style={{
-                background: `${action.color}14`,
-                border: `1px solid ${action.color}25`,
-                borderRadius: '16px',
-                padding: '16px',
-                display: 'flex', alignItems: 'center', gap: '10px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <span style={{ fontSize: '22px' }}>{action.icon}</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: action.color, fontFamily: 'var(--font-display)' }}>{action.label}</span>
+        <div className="action-grid">
+          {actions.map(action => (
+            <button key={action.label} className="action-btn" onClick={() => onNavigate(action.screen)}>
+              <div className="action-btn-icon">
+                <ActionIcon type={action.type} />
+              </div>
+              <span className="action-btn-label">{action.label}</span>
             </button>
           ))}
         </div>

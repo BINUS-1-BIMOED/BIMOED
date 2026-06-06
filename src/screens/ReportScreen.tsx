@@ -14,19 +14,19 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
   const [validating, setValidating] = useState(false)
 
   const categories = [
-    { id: 'flood', label: 'Banjir', icon: '🌊', desc: 'Genangan / luapan air' },
-    { id: 'landslide', label: 'Longsor', icon: '⛰️', desc: 'Tanah bergerak / ambles' },
-    { id: 'blockage', label: 'Jalan Rusak', icon: '🚧', desc: 'Jalan terputus / tergenang' },
-    { id: 'evacuation', label: 'Butuh Bantuan', icon: '🆘', desc: 'Perlu evakuasi / bantuan' },
-    { id: 'safe_zone', label: 'Zona Aman', icon: '⛺', desc: 'Laporkan lokasi aman' },
-    { id: 'other', label: 'Lainnya', icon: '📋', desc: 'Kejadian lain' },
+    { id: 'flood', label: 'Flood', icon: '🌊', desc: 'Standing water / overflow' },
+    { id: 'landslide', label: 'Landslide', icon: '⛰️', desc: 'Moving soil / subsidence' },
+    { id: 'blockage', label: 'Road Damage', icon: '🚧', desc: 'Blocked or flooded road' },
+    { id: 'evacuation', label: 'Need Help', icon: '🆘', desc: 'Evacuation / assistance needed' },
+    { id: 'safe_zone', label: 'Safe Zone', icon: '⛺', desc: 'Report a safe location' },
+    { id: 'other', label: 'Other', icon: '📋', desc: 'Other incident' },
   ]
 
   const severities = [
-    { id: 'low', label: 'Ringan', color: '#00C48C', desc: 'Situasi terkendali' },
-    { id: 'moderate', label: 'Sedang', color: '#FFCE00', desc: 'Butuh perhatian' },
-    { id: 'high', label: 'Parah', color: '#FF8C00', desc: 'Segera ditangani' },
-    { id: 'critical', label: 'Darurat', color: '#FF3B3B', desc: 'Bahaya jiwa!' },
+    { id: 'low', label: 'Minor', color: '#00C48C', desc: 'Situation under control' },
+    { id: 'moderate', label: 'Moderate', color: '#FFCE00', desc: 'Needs attention' },
+    { id: 'high', label: 'Severe', color: '#FF8C00', desc: 'Needs immediate action' },
+    { id: 'critical', label: 'Emergency', color: '#FF3B3B', desc: 'Life-threatening!' },
   ]
 
   const handleSubmit = () => {
@@ -43,21 +43,20 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
         <div className="animate-fade-in" style={{ textAlign: 'center', padding: '32px 24px' }}>
           <div style={{ fontSize: '72px', marginBottom: '20px', animation: 'float 3s ease infinite' }}>✅</div>
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.5px', marginBottom: '8px' }}>
-            Laporan Terkirim!
+            Report Submitted!
           </h2>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
-            Laporan Anda sedang divalidasi oleh sistem AI Escood dan tim moderator kami. Estimasi verifikasi: <strong style={{ color: 'var(--text)' }}>5–10 menit</strong>.
+            Your report is being validated by the Escood AI system and our moderator team. Estimated verification time: <strong style={{ color: 'var(--text)' }}>5–10 minutes</strong>.
           </p>
 
-          {/* Validation stages */}
           <div className="card" style={{ textAlign: 'left', marginBottom: '24px' }}>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Proses Validasi</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Validation Process</p>
             {[
-              { step: 'Laporan diterima', done: true, icon: '📥' },
-              { step: 'Cross-check sensor area', done: true, icon: '📡' },
-              { step: 'Validasi AI Intelligent Engine', done: false, icon: '🤖' },
-              { step: 'Review moderator manusia', done: false, icon: '👤' },
-              { step: 'Publikasi ke pengguna lain', done: false, icon: '📢' },
+              { step: 'Report received', done: true, icon: '📥' },
+              { step: 'Area sensor cross-check', done: true, icon: '📡' },
+              { step: 'AI Intelligent Engine validation', done: false, icon: '🤖' },
+              { step: 'Human moderator review', done: false, icon: '👤' },
+              { step: 'Published to other users', done: false, icon: '📢' },
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <div style={{
@@ -76,10 +75,10 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button className="btn-ghost" style={{ flex: 1 }} onClick={() => { setStep(1); setCategory(''); setSeverity(''); setDescription(''); setPhotoAdded(false); setSubmitted(false) }}>
-              Laporan Baru
+              New Report
             </button>
             <button className="btn-primary" style={{ flex: 1 }} onClick={() => onNavigate('home')}>
-              Kembali
+              Go Back
             </button>
           </div>
         </div>
@@ -105,10 +104,10 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             }}>🤖</div>
           </div>
           <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', marginBottom: '8px' }}>
-            AI Memvalidasi Laporan...
+            AI Validating Report...
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            Sistem sedang mencocokkan laporan Anda dengan data sensor real-time dan laporan komunitas lainnya
+            The system is matching your report with real-time sensor data and other community reports
           </p>
         </div>
       </div>
@@ -116,8 +115,7 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
   }
 
   return (
-    <div className="screen" style={{ padding: '16px' }}>
-      {/* Header */}
+    <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
         <button
           onClick={() => step > 1 ? setStep(step - 1) : onNavigate('home')}
@@ -129,13 +127,12 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.5px' }}>
-            Laporkan Kejadian
+            Report Incident
           </h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Langkah {step} dari 3</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Step {step} of 3</p>
         </div>
       </div>
 
-      {/* Progress steps */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
         {[1, 2, 3].map(s => (
           <div
@@ -149,11 +146,10 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
         ))}
       </div>
 
-      {/* Step 1: Category */}
       {step === 1 && (
         <div className="animate-fade-in">
-          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Jenis Kejadian</p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Pilih kategori yang paling sesuai</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Incident Type</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Select the most appropriate category</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {categories.map(cat => (
               <button
@@ -181,16 +177,15 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             disabled={!category}
             onClick={() => setStep(2)}
           >
-            Lanjut →
+            Continue →
           </button>
         </div>
       )}
 
-      {/* Step 2: Severity + Location */}
       {step === 2 && (
         <div className="animate-fade-in">
-          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Tingkat Keparahan</p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Seberapa parah situasinya?</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Severity Level</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>How severe is the situation?</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
             {severities.map(sev => (
               <button
@@ -216,15 +211,14 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             ))}
           </div>
 
-          {/* Location auto-detected */}
           <div className="card" style={{ marginBottom: '24px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📍</div>
               <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Lokasi Terdeteksi Otomatis</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Auto-Detected Location</p>
                 <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>Jl. Iskandar Muda No. 15, Medan Helvetia</p>
               </div>
-              <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: '11px' }}>Ubah</button>
+              <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: '11px' }}>Change</button>
             </div>
           </div>
 
@@ -233,21 +227,20 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             disabled={!severity}
             onClick={() => setStep(3)}
           >
-            Lanjut →
+            Continue →
           </button>
         </div>
       )}
 
-      {/* Step 3: Description + Photo */}
       {step === 3 && (
         <div className="animate-fade-in">
-          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Detail Kejadian</p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Ceritakan apa yang Anda lihat</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Incident Details</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Describe what you are seeing</p>
 
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Contoh: Air setinggi lutut menggenangi perumahan warga, warga mulai mengungsi..."
+            placeholder="Example: Knee-deep water flooding residential areas, residents beginning to evacuate..."
             style={{
               width: '100%',
               height: '110px',
@@ -266,7 +259,6 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             }}
           />
 
-          {/* Photo upload */}
           <button
             onClick={() => setPhotoAdded(!photoAdded)}
             style={{
@@ -284,15 +276,14 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             <span style={{ fontSize: '24px' }}>{photoAdded ? '🖼️' : '📷'}</span>
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: photoAdded ? 'var(--success)' : 'var(--text)' }}>
-                {photoAdded ? 'Foto Ditambahkan ✓' : 'Tambah Foto'}
+                {photoAdded ? 'Photo Added ✓' : 'Add Photo'}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                {photoAdded ? '1 foto terpilih' : 'Opsional — membantu validasi AI'}
+                {photoAdded ? '1 photo selected' : 'Optional — helps AI validation'}
               </div>
             </div>
           </button>
 
-          {/* Disclaimer */}
           <div style={{
             background: 'rgba(0,102,255,0.06)',
             border: '1px solid rgba(0,102,255,0.12)',
@@ -303,7 +294,7 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
           }}>
             <span style={{ fontSize: '16px', flexShrink: 0 }}>🤖</span>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              Laporan Anda akan divalidasi secara otomatis oleh AI Escood dan ditinjau moderator manusia sebelum dipublikasikan. Laporan palsu dapat menghambat respons darurat.
+              Your report will be automatically validated by Escood AI and reviewed by a human moderator before being published. False reports can hinder emergency response.
             </p>
           </div>
 
@@ -313,7 +304,7 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             disabled={!description.trim()}
             onClick={handleSubmit}
           >
-            {category === 'evacuation' ? '🆘 Kirim Laporan Darurat' : '📤 Kirim Laporan'}
+            {category === 'evacuation' ? '🆘 Send Emergency Report' : '📤 Submit Report'}
           </button>
         </div>
       )}
