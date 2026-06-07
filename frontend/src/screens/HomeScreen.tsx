@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { getRisk, getRiskHistory, getAlerts } from '../api/client'
+import type { Alert } from '../api/types'
+import { useLocation } from '../hooks/useLocation'
+import { timeAgo } from '../utils/format'
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void
@@ -15,34 +19,53 @@ const ActionIcon = ({ type }: { type: string }) => {
 }
 
 export default function HomeScreen({ onNavigate }: HomeScreenProps) {
-  const [riskLevel, setRiskLevel] = useState(78)
-  const [rainfallData] = useState([42, 58, 35, 67, 89, 78, 95, 88, 72, 65, 80, 92])
-  const [waterLevel] = useState(2.4)
+  const { lat, lng, label } = useLocation()
+  const [riskLevel, setRiskLevel] = useState(0)
+  const [riskLabel, setRiskLabel] = useState('Loading')
+  const [rainfallData, setRainfallData] = useState<number[]>([])
+  const [rainfallTotal, setRainfallTotal] = useState(0)
+  const [waterLevel, setWaterLevel] = useState(0)
+  const [dangerZones, setDangerZones] = useState(0)
+  const [alerts, setAlerts] = useState<Alert[]>([])
   const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  const loadData = useCallback(async () => {
+    try {
+      setApiError(null)
+      const [risk, history, alertList] = await Promise.all([
+        getRisk(lat, lng),
+        getRiskHistory(lat, lng),
+        getAlerts(lat, lng),
+      ])
+      setRiskLevel(risk.score)
+      setRiskLabel(risk.label)
+      setRainfallTotal(risk.rainfall_mm)
+      setWaterLevel(risk.water_level_m)
+      setRainfallData(history.points.map((p) => p.rainfall_mm))
+      setDangerZones(alertList.filter((a) => a.severity === 'high' || a.severity === 'critical').length)
+      setAlerts(alertList.slice(0, 3))
+      setLastUpdate(new Date(risk.computed_at))
+      setLoading(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setApiError(`Backend unavailable — run: cd backend/app && bash start.sh (${msg})`)
+      setLoading(false)
+    }
+  }, [lat, lng])
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRiskLevel(prev => {
-        const delta = (Math.random() - 0.4) * 3
-        return Math.max(60, Math.min(95, prev + delta))
-      })
-      setLastUpdate(new Date())
-    }, 4000)
+    loadData()
+    const interval = setInterval(loadData, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [loadData])
 
   const getRiskColor = (level: number) => {
     if (level >= 80) return 'var(--danger)'
     if (level >= 60) return 'var(--warning)'
     if (level >= 40) return '#FBBF24'
     return 'var(--success)'
-  }
-
-  const getRiskLabel = (level: number) => {
-    if (level >= 80) return 'Critical'
-    if (level >= 60) return 'High'
-    if (level >= 40) return 'Moderate'
-    return 'Low'
   }
 
   const getRiskClass = (level: number) => {
@@ -53,13 +76,7 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
   }
 
   const color = getRiskColor(riskLevel)
-  const maxRain = Math.max(...rainfallData)
-
-  const alerts = [
-    { id: 1, title: 'Deli River Overflowing', location: 'Medan Helvetia', time: '12 min', severity: 'critical' },
-    { id: 2, title: 'Extreme Rainfall', location: 'Medan Denai', time: '28 min', severity: 'high' },
-    { id: 3, title: 'Landslide Detected', location: 'Medan Tuntungan', time: '45 min', severity: 'high' },
-  ]
+  const maxRain = Math.max(...rainfallData, 1)
 
   const actions = [
     { label: 'Evacuation Route', type: 'route', screen: 'route' },
@@ -73,16 +90,22 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
       <div className="page-header animate-fade-in">
         <div>
           <p className="page-eyebrow">Active location</p>
-          <h1 className="page-title">Medan, North Sumatra</h1>
+          <h1 className="page-title">{label}</h1>
         </div>
         <button className="icon-btn" onClick={() => onNavigate('alert')} aria-label="Alerts">
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
-          <span className="icon-btn-badge">3</span>
+          {alerts.length > 0 && <span className="icon-btn-badge">{alerts.length}</span>}
         </button>
       </div>
+
+      {apiError && (
+        <div className="card" style={{ marginBottom: '12px', borderColor: 'var(--warning)', padding: '10px 14px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--warning)' }}>{apiError}</p>
+        </div>
+      )}
 
       <div
         className="risk-hero card animate-fade-in"
@@ -97,7 +120,7 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div>
             <p className="risk-hero-label">Flood risk</p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-              <span className="risk-hero-value" style={{ color }}>{Math.round(riskLevel)}</span>
+              <span className="risk-hero-value" style={{ color }}>{loading ? '—' : Math.round(riskLevel)}</span>
               <span className="risk-hero-unit" style={{ color }}>%</span>
             </div>
           </div>
@@ -108,7 +131,7 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
                 background: color,
                 animation: riskLevel >= 60 ? 'pulse-dot 1.5s ease infinite' : 'none'
               }} />
-              {getRiskLabel(riskLevel)}
+              {loading ? '…' : riskLabel}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
               Updated {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -124,9 +147,9 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
 
         <div className="risk-stats">
           {[
-            { label: 'Rainfall', value: '142mm' },
-            { label: 'Water level', value: `${waterLevel}m` },
-            { label: 'Danger zones', value: '3 areas' },
+            { label: 'Rainfall', value: `${rainfallTotal.toFixed(1)}mm` },
+            { label: 'Water level', value: `${waterLevel.toFixed(1)}m` },
+            { label: 'Danger zones', value: `${dangerZones} areas` },
           ].map(stat => (
             <div key={stat.label} className="risk-stat">
               <div className="risk-stat-value">{stat.value}</div>
@@ -142,7 +165,7 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
           <span className="chip-live">Live</span>
         </div>
         <div className="sparkline">
-          {rainfallData.map((val, i) => {
+          {(rainfallData.length ? rainfallData : Array(12).fill(0)).map((val, i) => {
             const h = (val / maxRain) * 100
             const isLast = i === rainfallData.length - 1
             return (
@@ -156,7 +179,9 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
           <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>12h ago</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Now · {rainfallData[rainfallData.length - 1]}mm</span>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+            Now · {rainfallData.length ? rainfallData[rainfallData.length - 1].toFixed(1) : '0'}mm
+          </span>
         </div>
       </div>
 
@@ -166,6 +191,9 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
           <button className="section-link" onClick={() => onNavigate('alert')}>View all</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {alerts.length === 0 && !loading && (
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '8px 0' }}>No active alerts nearby</p>
+          )}
           {alerts.map(alert => (
             <div
               key={alert.id}
@@ -187,9 +215,9 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <span className={`risk-badge ${alert.severity}`} style={{ fontSize: '9px', padding: '3px 7px' }}>
-                  {alert.severity === 'critical' ? 'Critical' : 'High'}
+                  {alert.severity === 'critical' ? 'Critical' : alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)}
                 </span>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>{alert.time}</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>{timeAgo(alert.created_at)}</div>
               </div>
             </div>
           ))}

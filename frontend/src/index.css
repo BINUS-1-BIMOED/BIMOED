@@ -1054,6 +1054,463 @@ body {
   color: white;
 }
 
+/* Google Maps-style map UI */
+.gmaps-screen {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #e8eaed;
+}
+
+.gmaps-leaflet {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font-family: var(--font-sans);
+}
+
+.gmaps-leaflet .leaflet-pane {
+  z-index: 1;
+}
+
+.gmaps-top-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.gmaps-top-bar > * {
+  pointer-events: auto;
+}
+
+.gmaps-round-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: #3c4043;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18), 0 2px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.gmaps-search-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border-radius: 24px;
+  padding: 0 16px;
+  height: 48px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18), 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.gmaps-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: #202124;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.gmaps-layer-chips {
+  position: absolute;
+  top: 72px;
+  left: 12px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.gmaps-layer-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.gmaps-chip {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background: white;
+  color: #3c4043;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: all 0.15s ease;
+}
+
+.gmaps-chip.active {
+  background: #1a73e8;
+  color: white;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+}
+
+.gmaps-legend {
+  position: absolute;
+  bottom: 100px;
+  left: 12px;
+  z-index: 500;
+  background: white;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.gmaps-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #5f6368;
+  margin-bottom: 4px;
+}
+
+.gmaps-legend-row:last-child {
+  margin-bottom: 0;
+}
+
+.gmaps-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gmaps-fabs {
+  position: absolute;
+  right: 12px;
+  bottom: 120px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gmaps-fab {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: #3c4043;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gmaps-fab-primary {
+  color: #1a73e8;
+}
+
+.gmaps-user-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.gmaps-user-dot {
+  width: 18px;
+  height: 18px;
+  background: #4285F4;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.gmaps-user-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: rgba(66, 133, 244, 0.25);
+  animation: gmaps-pulse 2s ease infinite;
+}
+
+@keyframes gmaps-pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 0.2; }
+}
+
+.gmaps-safe-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.gmaps-safe-pin {
+  width: 32px;
+  height: 32px;
+  background: #34A853;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 2px solid white;
+}
+
+.gmaps-safe-pin svg {
+  transform: rotate(45deg);
+}
+
+.gmaps-bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 600;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 8px 20px 24px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.gmaps-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: #dadce0;
+  border-radius: 2px;
+  margin: 4px auto 16px;
+}
+
+.gmaps-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gmaps-sheet-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #202124;
+  margin: 8px 0 4px;
+  font-family: var(--font-display);
+}
+
+.gmaps-sheet-sub {
+  font-size: 13px;
+  color: #5f6368;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.gmaps-sheet-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #5f6368;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.gmaps-sheet-action {
+  width: 100%;
+  border-radius: 24px !important;
+  padding: 14px !important;
+  font-size: 15px !important;
+  background: #1a73e8 !important;
+}
+
+.gmaps-route-banner {
+  position: absolute;
+  bottom: 16px;
+  left: 12px;
+  right: 12px;
+  z-index: 600;
+  background: white;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gmaps-route-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1a73e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gmaps-route-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gmaps-route-label {
+  font-size: 11px;
+  color: #1a73e8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 2px;
+}
+
+.gmaps-route-dest {
+  font-size: 16px;
+  font-weight: 600;
+  color: #202124;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gmaps-route-meta {
+  font-size: 12px;
+  color: #5f6368;
+  margin: 4px 0 0;
+}
+
+.gmaps-route-stop {
+  background: #f1f3f4;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3c4043;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.gmaps-safe-list {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 550;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 16px 24px;
+  max-height: 42%;
+  overflow-y: auto;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.gmaps-safe-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f6368;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gmaps-safe-list-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gmaps-safe-list-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.gmaps-safe-list-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gmaps-safe-list-text strong {
+  font-size: 14px;
+  color: #202124;
+}
+
+.gmaps-safe-list-text span {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.gmaps-safe-list-arrow {
+  font-size: 20px;
+  color: #9aa0a6;
+}
+
+.gmaps-attribution {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  z-index: 400;
+  font-size: 9px;
+  color: rgba(0, 0, 0, 0.45);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .gmaps-round-btn,
+[data-theme="dark"] .gmaps-search-pill,
+[data-theme="dark"] .gmaps-chip,
+[data-theme="dark"] .gmaps-fab,
+[data-theme="dark"] .gmaps-legend,
+[data-theme="dark"] .gmaps-bottom-sheet,
+[data-theme="dark"] .gmaps-route-banner,
+[data-theme="dark"] .gmaps-safe-list {
+  background: #292a2d;
+  color: #e8eaed;
+}
+
+[data-theme="dark"] .gmaps-search-input,
+[data-theme="dark"] .gmaps-sheet-title,
+[data-theme="dark"] .gmaps-route-dest,
+[data-theme="dark"] .gmaps-safe-list-text strong {
+  color: #e8eaed;
+}
+
+[data-theme="dark"] .gmaps-chip.active {
+  background: #8ab4f8;
+  color: #202124;
+}
+
+[data-theme="dark"] .gmaps-safe-list-item {
+  background: #35363a;
+}
+
 /* Alert card */
 .alert-card {
   background: var(--bg-card);

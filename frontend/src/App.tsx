@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { getAlerts } from './api/client'
+import { useLocation } from './hooks/useLocation'
 import HomeScreen from './screens/HomeScreen'
 import MapScreen from './screens/MapScreen'
 import AlertScreen from './screens/AlertScreen'
@@ -41,7 +43,7 @@ const NAV_ITEMS = [
         <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
       </svg>
     ),
-    badge: 3
+    badge: true
   },
   {
     id: 'report',
@@ -67,8 +69,10 @@ const NAV_ITEMS = [
 ]
 
 export default function App() {
+  const { lat, lng } = useLocation()
   const [onboarded, setOnboarded] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
+  const [alertBadge, setAlertBadge] = useState(0)
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('escood-theme')
     return saved === 'light' || saved === 'dark' ? saved : 'dark'
@@ -77,6 +81,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('escood-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    getAlerts(lat, lng)
+      .then((alerts) => setAlertBadge(alerts.filter((a) => a.severity === 'high' || a.severity === 'critical').length))
+      .catch(() => setAlertBadge(0))
+  }, [lat, lng])
 
   const navigate = (s: string) => {
     const valid: Screen[] = ['home', 'map', 'alert', 'report', 'safe', 'route', 'contacts', 'profile']
@@ -91,7 +101,10 @@ export default function App() {
     : screen
 
   const renderScreen = () => {
-    if (isMapScreen) return <MapScreen onNavigate={navigate}/>
+    if (isMapScreen) {
+      const mode = screen === 'route' ? 'route' : screen === 'safe' ? 'safe' : 'risk'
+      return <MapScreen onNavigate={navigate} initialMode={mode} />
+    }
     switch (screen) {
       case 'home': return <HomeScreen onNavigate={navigate}/>
       case 'alert': return <AlertScreen onNavigate={navigate}/>
@@ -149,8 +162,8 @@ export default function App() {
                   >
                     <div style={{ position: 'relative' }}>
                       {item.icon(isActive)}
-                      {'badge' in item && item.badge && !isActive && (
-                        <span className="nav-badge">{item.badge}</span>
+                      {'badge' in item && item.badge && alertBadge > 0 && !isActive && (
+                        <span className="nav-badge">{alertBadge}</span>
                       )}
                     </div>
                     {!isFab && <span className="nav-label">{item.label}</span>}

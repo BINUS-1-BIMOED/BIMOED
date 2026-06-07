@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: escood-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: ORS_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://your-frontend.onrender.com

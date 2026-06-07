@@ -1,94 +1,52 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getAlerts } from '../api/client'
+import type { Alert } from '../api/types'
+import { useLocation } from '../hooks/useLocation'
+import { timeAgo } from '../utils/format'
 
 interface AlertScreenProps {
   onNavigate: (screen: string) => void
 }
 
-export default function AlertScreen({ onNavigate }: AlertScreenProps) {
-  const [filter, setFilter] = useState('all')
-  const [expandedId, setExpandedId] = useState<number | null>(1)
+interface DisplayAlert extends Alert {
+  subtitle: string
+  time: string
+  detail: string
+  confidence: number
+  affected: string
+}
 
-  const alerts = [
-    {
-      id: 1,
-      title: 'Critical flood — Deli River',
-      subtitle: 'Water level reached 2.8m, exceeding Alert Level III',
-      location: 'Medan Helvetia',
-      time: '12 min ago',
-      severity: 'critical',
-      detail: 'The Deli River reached 2.8m at 2:30 PM. BNPB recommends immediate evacuation for residents within a 500m radius. 3 evacuation points opened at GOR Pancing, Merdeka Square, and Adam Malik Hospital.',
-      source: 'BNPB + IoT Sensor #DL-12',
-      confidence: 94,
-      affected: '~1,200 households',
-    },
-    {
-      id: 2,
-      title: 'Extreme rainfall warning',
-      subtitle: 'BMKG: Potential rainfall >100mm in 3 hours',
-      location: 'All of Medan City',
-      time: '28 min ago',
-      severity: 'high',
-      detail: 'BMKG issued an extreme rainfall warning with an estimated 100–150mm in 3 hours. Flash flooding is possible in low-lying areas.',
-      source: 'BMKG Official Feed',
-      confidence: 88,
-      affected: 'Entire city',
-    },
-    {
-      id: 3,
-      title: 'Landslide risk',
-      subtitle: 'Water-saturated soil on eastern slopes',
-      location: 'Medan Tuntungan',
-      time: '45 min ago',
-      severity: 'high',
-      detail: 'Soil movement sensors detected increased pressure on slopes in Tuntungan District. Residents on slopes are urged to remain vigilant.',
-      source: 'Geophysics Sensor + Community',
-      confidence: 76,
-      affected: '~340 households',
-    },
-    {
-      id: 4,
-      title: 'Road flooded',
-      subtitle: 'Gatot Subroto Street impassable',
-      location: 'Medan Petisah',
-      time: '1 hour ago',
-      severity: 'moderate',
-      detail: 'Community reports show 40–60cm flooding on Gatot Subroto Street. Avoid this route for now.',
-      source: 'Community Report (Verified)',
-      confidence: 91,
-      affected: 'Road users',
-    },
-    {
-      id: 5,
-      title: 'Tangga Dam Alert Level I',
-      subtitle: 'Water flow increasing, potential release',
-      location: 'Upper Asahan River',
-      time: '2 hours ago',
-      severity: 'high',
-      detail: 'Tangga Hydroelectric Plant entered Alert Level I. A planned water release may occur within 4–6 hours.',
-      source: 'PLN / Inalum Monitoring',
-      confidence: 82,
-      affected: 'Riverbanks',
-    },
-    {
-      id: 6,
-      title: 'Evacuation center opened',
-      subtitle: 'GOR Pancing ready for 500 evacuees',
-      location: 'Jl. William Iskandar',
-      time: '3 hours ago',
-      severity: 'info',
-      detail: 'BPBD Medan City opened an evacuation center at GOR Pancing with clean water, kitchen, and medical staff.',
-      source: 'BPBD Medan City',
-      confidence: 100,
-      affected: 'Affected residents',
-    },
-  ]
+export default function AlertScreen({ onNavigate }: AlertScreenProps) {
+  const { lat, lng } = useLocation()
+  const [filter, setFilter] = useState('all')
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [alerts, setAlerts] = useState<DisplayAlert[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getAlerts(lat, lng, 25)
+      .then((data) => {
+        setAlerts(
+          data.map((a) => ({
+            ...a,
+            subtitle: a.description || `Alert from ${a.source}`,
+            time: timeAgo(a.created_at),
+            detail: a.description || `${a.title} reported in ${a.location}. Source: ${a.source}.`,
+            confidence: a.severity === 'critical' ? 94 : a.severity === 'high' ? 82 : 70,
+            affected: a.location,
+          })),
+        )
+        if (data.length > 0) setExpandedId(data[0].id)
+      })
+      .catch(() => setAlerts([]))
+      .finally(() => setLoading(false))
+  }, [lat, lng])
 
   const filters = [
     { id: 'all', label: 'All' },
     { id: 'critical', label: 'Critical' },
     { id: 'high', label: 'High' },
     { id: 'moderate', label: 'Moderate' },
-    { id: 'info', label: 'Info' },
   ]
 
   const filtered = filter === 'all' ? alerts : alerts.filter(a => a.severity === filter)
@@ -97,7 +55,7 @@ export default function AlertScreen({ onNavigate }: AlertScreenProps) {
     critical: 'Critical',
     high: 'High',
     moderate: 'Moderate',
-    info: 'Info',
+    low: 'Low',
   }
 
   const activeCount = alerts.filter(a => a.severity === 'critical' || a.severity === 'high').length
@@ -126,6 +84,10 @@ export default function AlertScreen({ onNavigate }: AlertScreenProps) {
       </div>
 
       <div style={{ padding: '0 var(--page-pad) 24px' }}>
+        {loading && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading alerts…</p>}
+        {!loading && filtered.length === 0 && (
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No alerts match this filter</p>
+        )}
         {filtered.map((alert, i) => {
           const isExpanded = expandedId === alert.id
           return (
@@ -139,7 +101,7 @@ export default function AlertScreen({ onNavigate }: AlertScreenProps) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>{alert.title}</span>
                   <span className={`risk-badge ${alert.severity}`} style={{ fontSize: '9px', padding: '3px 7px', flexShrink: 0 }}>
-                    {severityLabels[alert.severity]}
+                    {severityLabels[alert.severity] ?? alert.severity}
                   </span>
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>{alert.subtitle}</p>

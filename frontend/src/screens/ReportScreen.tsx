@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { submitReport, submitReportWithPhoto } from '../api/client'
+import type { ReportCategory, Severity } from '../api/types'
+import { useLocation } from '../hooks/useLocation'
 
 interface ReportScreenProps {
   onNavigate: (screen: string) => void
 }
 
 export default function ReportScreen({ onNavigate }: ReportScreenProps) {
+  const { lat, lng } = useLocation()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState(1)
   const [category, setCategory] = useState('')
   const [severity, setSeverity] = useState('')
   const [description, setDescription] = useState('')
-  const [photoAdded, setPhotoAdded] = useState(false)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [validating, setValidating] = useState(false)
+  const [validationStatus, setValidationStatus] = useState('')
+  const [confidence, setConfidence] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   const categories = [
     { id: 'flood', label: 'Flood', icon: '🌊', desc: 'Standing water / overflow' },
@@ -29,12 +37,28 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
     { id: 'critical', label: 'Emergency', color: '#FF3B3B', desc: 'Life-threatening!' },
   ]
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setValidating(true)
-    setTimeout(() => {
-      setValidating(false)
+    setError(null)
+    try {
+      const payload = {
+        category: category as ReportCategory,
+        severity: severity as Severity,
+        lat,
+        lng,
+        description: description.trim(),
+      }
+      const result = photoFile
+        ? await submitReportWithPhoto(payload, photoFile)
+        : await submitReport(payload)
+      setValidationStatus(result.validation_status)
+      setConfidence(Math.round(result.confidence * 100))
       setSubmitted(true)
-    }, 2500)
+    } catch {
+      setError('Failed to submit report. Is the backend running?')
+    } finally {
+      setValidating(false)
+    }
   }
 
   if (submitted) {
@@ -46,7 +70,7 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             Report Submitted!
           </h2>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
-            Your report is being validated by the Escood AI system and our moderator team. Estimated verification time: <strong style={{ color: 'var(--text)' }}>5–10 minutes</strong>.
+            AI validation: <strong style={{ color: 'var(--text)' }}>{validationStatus}</strong> ({confidence}% confidence)
           </p>
 
           <div className="card" style={{ textAlign: 'left', marginBottom: '24px' }}>
@@ -54,9 +78,8 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             {[
               { step: 'Report received', done: true, icon: '📥' },
               { step: 'Area sensor cross-check', done: true, icon: '📡' },
-              { step: 'AI Intelligent Engine validation', done: false, icon: '🤖' },
-              { step: 'Human moderator review', done: false, icon: '👤' },
-              { step: 'Published to other users', done: false, icon: '📢' },
+              { step: 'AI Intelligent Engine validation', done: validationStatus !== 'pending', icon: '🤖' },
+              { step: 'Published to other users', done: validationStatus === 'verified', icon: '📢' },
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <div style={{
@@ -74,7 +97,7 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn-ghost" style={{ flex: 1 }} onClick={() => { setStep(1); setCategory(''); setSeverity(''); setDescription(''); setPhotoAdded(false); setSubmitted(false) }}>
+            <button className="btn-ghost" style={{ flex: 1 }} onClick={() => { setStep(1); setCategory(''); setSeverity(''); setDescription(''); setPhotoFile(null); setSubmitted(false) }}>
               New Report
             </button>
             <button className="btn-primary" style={{ flex: 1 }} onClick={() => onNavigate('home')}>
@@ -132,6 +155,12 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Step {step} of 3</p>
         </div>
       </div>
+
+      {error && (
+        <div style={{ background: 'rgba(255,59,59,0.1)', border: '1px solid rgba(255,59,59,0.3)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', fontSize: '12px', color: 'var(--danger)' }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
         {[1, 2, 3].map(s => (
@@ -215,10 +244,9 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📍</div>
               <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Auto-Detected Location</p>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>Jl. Iskandar Muda No. 15, Medan Helvetia</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Report location</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>{lat.toFixed(4)}, {lng.toFixed(4)}</p>
               </div>
-              <button className="btn-ghost" style={{ padding: '6px 10px', fontSize: '11px' }}>Change</button>
             </div>
           </div>
 
@@ -259,12 +287,20 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
             }}
           />
 
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+          />
           <button
-            onClick={() => setPhotoAdded(!photoAdded)}
+            onClick={() => fileRef.current?.click()}
             style={{
               width: '100%',
-              background: photoAdded ? 'var(--success-bg)' : 'var(--bg-card)',
-              border: `1.5px dashed ${photoAdded ? 'rgba(0,196,140,0.4)' : 'var(--border)'}`,
+              background: photoFile ? 'var(--success-bg)' : 'var(--bg-card)',
+              border: `1.5px dashed ${photoFile ? 'rgba(0,196,140,0.4)' : 'var(--border)'}`,
               borderRadius: '14px',
               padding: '20px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
@@ -273,13 +309,13 @@ export default function ReportScreen({ onNavigate }: ReportScreenProps) {
               marginBottom: '24px'
             }}
           >
-            <span style={{ fontSize: '24px' }}>{photoAdded ? '🖼️' : '📷'}</span>
+            <span style={{ fontSize: '24px' }}>{photoFile ? '🖼️' : '📷'}</span>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: photoAdded ? 'var(--success)' : 'var(--text)' }}>
-                {photoAdded ? 'Photo Added ✓' : 'Add Photo'}
+              <div style={{ fontSize: '13px', fontWeight: 700, color: photoFile ? 'var(--success)' : 'var(--text)' }}>
+                {photoFile ? 'Photo Added ✓' : 'Add Photo'}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                {photoAdded ? '1 photo selected' : 'Optional — helps AI validation'}
+                {photoFile ? photoFile.name : 'Optional — helps AI validation'}
               </div>
             </div>
           </button>
