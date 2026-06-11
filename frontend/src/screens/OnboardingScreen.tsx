@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import floodLogo from '../assets/6.png'; // Assuming 6.png is in the assets folder
 
 interface OnboardingScreenProps {
   onComplete: () => void
@@ -15,7 +16,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const slides = [
     {
-      icon: '🌊',
+      icon: floodLogo,
       title: 'Real-Time Flood Detection',
       desc: 'Our AI analyzes sensor data, BMKG weather, and community reports simultaneously to deliver accurate early warnings.',
       color: '#0066FF',
@@ -57,8 +58,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '44px',
             marginBottom: '24px',
-            boxShadow: '0 0 40px rgba(0,102,255,0.2)'
-          }}>🌊</div>
+            boxShadow: '0 0 40px rgba(0,102,255,0.2)' // The fontSize property will not affect the image, but the image will fill the div.
+          }}><img src={floodLogo} alt="Flood Detection" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></div>
         </div>
         <div style={{ textAlign: 'center', animation: 'fade-in 0.6s ease 0.3s both' }}>
           <h1 style={{
@@ -135,8 +136,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             boxShadow: `0 0 60px ${current.color}20`,
             animation: 'float 3s ease infinite, fade-in 0.4s ease'
           }}
-        >
-          {current.icon}
+        > 
+          {current.icon === floodLogo ? (
+            <img src={current.icon} alt={current.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          ) : (
+            current.icon
+          )}
         </div>
 
         <div className="animate-fade-in" key={`text-${slide}`} style={{ textAlign: 'center' }}>
