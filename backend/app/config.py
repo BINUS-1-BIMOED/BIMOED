@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     google_maps_api_key: str = ""
 
     model_path: str = "./ml/models/flood_model.joblib"
+    secondary_model_path: str = "./ml/models/flood_model.pkl"
     default_lat: float = 3.5952
     default_lng: float = 98.6722
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
