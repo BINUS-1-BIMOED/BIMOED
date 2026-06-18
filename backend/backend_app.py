@@ -16,9 +16,10 @@ app = FastAPI(title="BIMOED Backend POC")
 DATA_DIR = os.environ.get("DATA_DIR","data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# default PKL path set to where user indicated the PKL resides in repo
 model_loader = ModelLoader(
-    pkl_path=os.environ.get("PKL_PATH","models/flood_model.pkl"),
-    joblib_path=os.environ.get("JOBLIB_PATH","models/flood_model.joblib"),
+    pkl_path=os.environ.get("PKL_PATH","backend/app/ml/models/flood_model.pkl"),
+    joblib_path=os.environ.get("JOBLIB_PATH","backend/app/ml/models/flood_model.joblib"),
 )
 
 cooldown = CooldownManager()
