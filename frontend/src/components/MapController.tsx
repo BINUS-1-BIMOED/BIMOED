@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
 
 export function MapController({
@@ -9,9 +9,11 @@ export function MapController({
   zoom: number
 }) {
   const map = useMap()
+  const initialRef = useRef(true)
 
   useEffect(() => {
-    map.setView(center, zoom, { animate: true })
+    map.setView(center, zoom, { animate: !initialRef.current })
+    initialRef.current = false
   }, [center, zoom, map])
 
   return null

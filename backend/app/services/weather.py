@@ -62,15 +62,16 @@ class WeatherService:
         }
 
     async def fetch_bmkg(self, lat: float, lng: float) -> dict:
-        if not settings.bmkg_api_key:
-            return self._bmkg_fallback(lat, lng)
+        headers = {}
+        if settings.bmkg_api_key:
+            headers["Authorization"] = settings.bmkg_api_key
 
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 resp = await client.get(
                     "https://api.bmkg.go.id/publik/prakiraan-cuaca",
                     params={"adm4": "12.71.06.1001"},
-                    headers={"Authorization": settings.bmkg_api_key},
+                    headers=headers,
                 )
                 if resp.status_code == 200:
                     return resp.json()

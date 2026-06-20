@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     ors_api_key: str = ""
     google_maps_api_key: str = ""
 
-    model_path: str = "./ml/models/flood_model.joblib"
-    secondary_model_path: str = "./ml/models/flood_model.pkl"
+    model_path: str = "./ml/models/escood_pipeline.pkl"
+    secondary_model_path: str = "./ml/models/flood_model.joblib"
     default_lat: float = 3.5952
     default_lng: float = 98.6722
     cors_origins: str = "http://localhost:5173,http://localhost:3000"

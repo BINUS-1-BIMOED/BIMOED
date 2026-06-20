@@ -124,3 +124,82 @@ class SyncBundleResponse(BaseModel):
     risk_grid: list[dict]
     dem_tiles: list[dict]
     last_sync: datetime
+
+
+class SOSCreate(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    age: int = Field(..., ge=0, le=150)
+    is_disabled: bool = False
+    urgency: Literal["low", "medium", "critical"]
+    user_id: str | None = None
+    description: str = ""
+
+
+class SOSResponse(BaseModel):
+    id: int
+    lat: float
+    lng: float
+    age: int
+    is_disabled: bool
+    urgency: str
+    status: str
+    user_id: str | None
+    description: str
+    created_at: datetime
+    resolved_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class CommunityValidationCreate(BaseModel):
+    report_id: int
+    verdict: Literal["accurate", "inaccurate", "duplicate", "uncertain"]
+    confidence: float = Field(0.5, ge=0, le=1)
+    user_id: str | None = None
+    notes: str | None = None
+
+
+class CommunityValidationResponse(BaseModel):
+    id: int
+    report_id: int
+    user_id: str | None
+    verdict: str
+    confidence: float
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FloodNotificationCreate(BaseModel):
+    alert_type: Literal["flood", "warning", "watch", "advisory"]
+    severity: Severity
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    location_name: str
+    title: str
+    description: str
+    source: str
+    radius_km: float = Field(10, ge=0.1, le=100)
+
+
+class FloodNotificationResponse(BaseModel):
+    id: int
+    alert_type: str
+    severity: str
+    lat: float
+    lng: float
+    location_name: str
+    radius_km: float
+    title: str
+    description: str
+    source: str
+    is_broadcast: bool
+    broadcast_at: datetime | None
+    users_notified: int
+    created_at: datetime
+    expires_at: datetime | None
+
+    model_config = {"from_attributes": True}

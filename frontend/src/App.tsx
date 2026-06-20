@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getAlerts } from './api/client'
+import { getAlerts, isOnline } from './api/client'
 import { useLocation } from './hooks/useLocation'
 import HomeScreen from './screens/HomeScreen'
 import MapScreen from './screens/MapScreen'
@@ -7,6 +7,7 @@ import AlertScreen from './screens/AlertScreen'
 import ReportScreen from './screens/ReportScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import OnboardingScreen from './screens/OnboardingScreen'
+import SOSModal from './components/SOSModal'
 import './index.css'
 
 type Screen = 'home' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile'
@@ -73,10 +74,23 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
   const [alertBadge, setAlertBadge] = useState(0)
+  const [sosModalOpen, setSosModalOpen] = useState(false)
+  const [appOffline, setAppOffline] = useState(!isOnline())
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('escood-theme')
     return saved === 'light' || saved === 'dark' ? saved : 'dark'
   })
+
+  useEffect(() => {
+    const goOnline = () => setAppOffline(false)
+    const goOffline = () => setAppOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('escood-theme', theme)
@@ -139,6 +153,16 @@ export default function App() {
         </div>
       ) : (
         <>
+          {appOffline && (
+            <div style={{
+              background: '#F59E0B', color: '#1a1a2e', textAlign: 'center',
+              padding: '4px 12px', fontSize: '11px', fontWeight: 600,
+              flexShrink: 0, letterSpacing: '0.03em'
+            }}>
+              ⚠️ You are offline — showing cached data
+            </div>
+          )}
+
           {isMapScreen ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {renderScreen()}
@@ -171,7 +195,23 @@ export default function App() {
                 )
               })}
             </nav>
+            <button
+              className="sos-button"
+              onClick={() => setSosModalOpen(true)}
+              aria-label="SOS Emergency Alert"
+              title="Send emergency SOS alert"
+            >
+              <span className="sos-text">SOS</span>
+            </button>
           </div>
+
+          <SOSModal
+            isOpen={sosModalOpen}
+            onClose={() => setSosModalOpen(false)}
+            onSuccess={() => {
+              setScreen('home')
+            }}
+          />
         </>
       )}
     </div>

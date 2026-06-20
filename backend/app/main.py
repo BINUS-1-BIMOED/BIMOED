@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from config import settings
 from database import Base, SessionLocal, engine
 from jobs.scheduler import run_scheduled_refresh
-from routers import alerts, health, reports, risk, routes, safe_zones, sync
+from routers import alerts, health, reports, risk, routes, safe_zones, sync, sos, community, flood_alerts, admin
 from seed import seed_database
 
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +72,10 @@ app.include_router(reports.router, prefix=settings.api_prefix)
 app.include_router(safe_zones.router, prefix=settings.api_prefix)
 app.include_router(routes.router, prefix=settings.api_prefix)
 app.include_router(sync.router, prefix=settings.api_prefix)
+app.include_router(sos.router, prefix=settings.api_prefix)
+app.include_router(community.router, prefix=settings.api_prefix)
+app.include_router(flood_alerts.router, prefix=settings.api_prefix)
+app.include_router(admin.router)
 
 try:
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

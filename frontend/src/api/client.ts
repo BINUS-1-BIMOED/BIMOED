@@ -1,3 +1,4 @@
+import { setCache, getCache } from '../utils/storage'
 import type {
   Alert,
   EvacuationRoute,
@@ -8,6 +9,8 @@ import type {
   RiskHistoryPoint,
   SafeZone,
   SyncBundle,
+  SOSPayload,
+  SOSResponse,
 } from './types'
 
 // In dev, use Vite proxy (same origin) — avoids CORS and port mismatches
@@ -16,16 +19,47 @@ const API_BASE = import.meta.env.DEV
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
 const API_PREFIX = '/api/v1'
 
+// Track online status
+let _isOnline = navigator.onLine
+window.addEventListener('online', () => { _isOnline = true })
+window.addEventListener('offline', () => { _isOnline = false })
+
+export function isOnline(): boolean {
+  return _isOnline
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
-    headers: { Accept: 'application/json', ...init?.headers },
-    ...init,
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText)
-    throw new Error(detail || `Request failed (${res.status})`)
+  const cacheKey = `api:${init?.method || 'GET'}:${path}`
+  const isMutation = init?.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(init.method)
+
+  try {
+    const res = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
+      headers: { Accept: 'application/json', ...init?.headers },
+      ...init,
+    })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => res.statusText)
+      throw new Error(detail || `Request failed (${res.status})`)
+    }
+    const data = (await res.json()) as T
+
+    // Cache successful GET responses for offline use
+    if (!isMutation) {
+      setCache(cacheKey, data, 5 * 60 * 1000).catch(() => {}) // 5 min TTL
+    }
+
+    return data
+  } catch (err) {
+    // If offline or network error, try to return cached data
+    if (!_isOnline || err instanceof TypeError) {
+      const cached = await getCache<T>(cacheKey)
+      if (cached) {
+        console.log(`[Offline] Returning cached data for ${path}${cached.fresh ? ' (fresh)' : ' (stale)'}`)
+        return cached.data
+      }
+    }
+    throw err
   }
-  return res.json() as Promise<T>
 }
 
 export function getRisk(lat: number, lng: number): Promise<RiskData> {
@@ -99,5 +133,102 @@ export async function checkApiHealth(): Promise<boolean> {
     return res.ok
   } catch {
     return false
+  }
+}
+
+export function submitSOS(payload: SOSPayload): Promise<SOSResponse> {
+  return request('/sos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getNearSOSAlerts(lat: number, lng: number, radiusKm = 15): Promise<SOSResponse[]> {
+  return request(`/sos?lat=${lat}&lng=${lng}&radius_km=${radiusKm}`)
+}
+
+export function resolveSOS(sosId: number): Promise<SOSResponse> {
+  return request(`/sos/${sosId}/resolve`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+export interface GoogleWeatherData {
+  temp: number
+  condition: string
+  humidity: number
+  windSpeed: number
+  icon: string
+}
+
+export interface GoogleForecastHour {
+  hour: number
+  temp: number
+  condition: string
+  icon: string
+}
+
+export async function getGoogleWeather(lat: number, lng: number): Promise<{
+  current: GoogleWeatherData;
+  forecast: GoogleForecastHour[];
+}> {
+  const key = 'AIzaSyCfB0aXDl9DvPERacbsbKk9N0aF9C0wsco'
+  const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${lat}&location.longitude=${lng}`
+  const forecastUrl = `https://weather.googleapis.com/v1/forecast/hours:lookup?key=${key}&location.latitude=${lat}&location.longitude=${lng}`
+
+  const cacheKey = 'weather:google'
+
+  try {
+    const [currentRes, forecastRes] = await Promise.all([
+      fetch(currentUrl),
+      fetch(forecastUrl),
+    ])
+
+    if (!currentRes.ok || !forecastRes.ok) {
+      throw new Error('Failed to fetch weather data from Google Maps API')
+    }
+
+    const currentData = await currentRes.json()
+    const forecastData = await forecastRes.json()
+
+    const mapTypeToEmoji = (type: string): string => {
+      const t = type?.toUpperCase() || ''
+      if (t.includes('CLEAR') || t.includes('SUNNY')) return '☀️'
+      if (t.includes('THUNDERSTORM')) return '⛈️'
+      if (t.includes('RAIN') || t.includes('SHOWER') || t.includes('DRIZZLE')) return '🌧️'
+      if (t.includes('SNOW') || t.includes('HAIL')) return '❄️'
+      if (t.includes('WINDY') || t.includes('BREEZY')) return '💨'
+      if (t.includes('FOG') || t.includes('HAZE') || t.includes('MIST') || t.includes('SMOKE')) return '🌫️'
+      return '☁️'
+    }
+
+    const current = {
+      temp: currentData.temperature?.degrees ?? 25,
+      condition: currentData.weatherCondition?.description?.text ?? 'Cloudy',
+      humidity: currentData.relativeHumidity ?? 80,
+      windSpeed: currentData.wind?.speed?.value ?? 0,
+      icon: mapTypeToEmoji(currentData.weatherCondition?.type),
+    }
+
+    const forecast = (forecastData.forecastHours ?? []).slice(0, 6).map((item: any) => ({
+      hour: item.displayDateTime?.hours ?? 0,
+      temp: item.temperature?.degrees ?? 25,
+      condition: item.weatherCondition?.description?.text ?? 'Cloudy',
+      icon: mapTypeToEmoji(item.weatherCondition?.type),
+    }))
+
+    const result = { current, forecast }
+    setCache(cacheKey, result, 15 * 60 * 1000).catch(() => {}) // 15 min TTL
+    return result
+  } catch (err) {
+    // Return cached weather if offline
+    const cached = await getCache<{ current: GoogleWeatherData; forecast: GoogleForecastHour[] }>(cacheKey)
+    if (cached) {
+      console.log('[Offline] Returning cached weather data')
+      return cached.data
+    }
+    throw err
   }
 }

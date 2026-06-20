@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { isOnline } from '../api/client'
+import { clearAllCache } from '../utils/storage'
 
 type Theme = 'light' | 'dark'
 
@@ -9,9 +11,35 @@ interface ProfileScreenProps {
 }
 
 export default function ProfileScreen({ onNavigate: _onNavigate, theme, onThemeChange }: ProfileScreenProps) {
-  const [offlineMode, setOfflineMode] = useState(true)
+  const [offlineMode, setOfflineMode] = useState(() => {
+    return localStorage.getItem('bimoed-offline-mode') !== 'false'
+  })
   const [vibration, setVibration] = useState(true)
   const [autoEvac, setAutoEvac] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(isOnline() ? 'Online' : 'Offline')
+
+  useEffect(() => {
+    const updateStatus = () => setCurrentStatus(isOnline() ? 'Online' : 'Offline')
+    window.addEventListener('online', updateStatus)
+    window.addEventListener('offline', updateStatus)
+    return () => {
+      window.removeEventListener('online', updateStatus)
+      window.removeEventListener('offline', updateStatus)
+    }
+  }, [])
+
+  const handleOfflineToggle = () => {
+    const newVal = !offlineMode
+    setOfflineMode(newVal)
+    localStorage.setItem('bimoed-offline-mode', String(newVal))
+    if (newVal) {
+      console.log('[Offline] Offline mode enabled — data will be cached for offline use')
+    } else {
+      // Clear cached data when turning offline mode off
+      clearAllCache().catch(() => {})
+      console.log('[Offline] Offline mode disabled — cache cleared')
+    }
+  }
 
   const stats = [
     { label: 'Reports', value: '7' },
@@ -27,7 +55,7 @@ export default function ProfileScreen({ onNavigate: _onNavigate, theme, onThemeC
   ]
 
   const settings = [
-    { label: 'Offline mode', desc: 'DEM data & maps stored locally', value: offlineMode, onChange: () => setOfflineMode(!offlineMode) },
+    { label: 'Offline mode', desc: `DEM data & maps stored locally · ${currentStatus}`, value: offlineMode, onChange: handleOfflineToggle },
     { label: 'Alert vibration', desc: 'Vibrate on emergency alerts', value: vibration, onChange: () => setVibration(!vibration) },
     { label: 'Auto evacuation', desc: 'Show route when risk is critical', value: autoEvac, onChange: () => setAutoEvac(!autoEvac) },
   ]

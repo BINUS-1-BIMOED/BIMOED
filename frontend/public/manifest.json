@@ -1,0 +1,113 @@
+{
+  "name": "BIMOED - Flood Early Warning System",
+  "short_name": "BIMOED",
+  "description": "AI-driven flood prediction, community validation, and evacuation guidance system",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080A0F",
+  "theme_color": "#4F8EF7",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "BIMOED flood alert screen"
+    },
+    {
+      "src": "/screenshot-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "BIMOED flood map view"
+    }
+  ],
+  "categories": ["emergency", "weather", "maps"],
+  "shortcuts": [
+    {
+      "name": "View Flood Map",
+      "short_name": "Map",
+      "description": "Quickly view the flood risk map",
+      "url": "/?view=map",
+      "icons": [
+        {
+          "src": "/icon-map-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Submit Report",
+      "short_name": "Report",
+      "description": "Report a flood incident",
+      "url": "/?view=report",
+      "icons": [
+        {
+          "src": "/icon-report-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Send emergency SOS alert",
+      "url": "/?action=sos",
+      "icons": [
+        {
+          "src": "/icon-sos-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share/flood-report",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "photo",
+          "accept": ["image/jpeg", "image/png", "image/webp"]
+        }
+      ]
+    }
+  },
+  "prefer_related_applications": false,
+  "related_applications": []
+}

@@ -38,7 +38,7 @@ async def evacuation_route(payload: EvacuationRouteRequest, db: Session = Depend
         zone = min(zones, key=lambda z: haversine_km(payload.origin_lat, payload.origin_lng, z.lat, z.lng))
 
     dest = SafeZoneResponse(
-        id=zone.id,
+        id=zone.id if zone.id is not None else 0,
         name=zone.name,
         lat=zone.lat,
         lng=zone.lng,

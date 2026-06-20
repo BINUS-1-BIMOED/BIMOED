@@ -1,6 +1,7 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical'
 export type ReportCategory = 'flood' | 'landslide' | 'blockage' | 'evacuation' | 'safe_zone' | 'other'
 export type ValidationStatus = 'pending' | 'verified' | 'flagged'
+export type SOSUrgency = 'low' | 'medium' | 'critical'
 
 export interface RiskData {
   score: number
@@ -86,4 +87,37 @@ export interface SyncBundle {
   risk_grid: RiskGridPoint[]
   dem_tiles: { id: string; bounds: number[]; resolution_m: number }[]
   last_sync: string
+}
+
+export interface SOSPayload {
+  lat: number
+  lng: number
+  age: number
+  is_disabled: boolean
+  urgency: SOSUrgency
+  user_id?: string | null
+  description?: string
+}
+
+export interface SOSResponse extends SOSPayload {
+  id: number
+  status: string
+  created_at: string
+  resolved_at: string | null
+}
+
+export interface WeatherData {
+  temp: number
+  condition: string
+  humidity: number
+  wind_speed: number
+  precipitation: number
+  icon: string
+}
+
+export interface HourlyForecast {
+  hour: number
+  temp: number
+  condition: string
+  precipitation: number
 }

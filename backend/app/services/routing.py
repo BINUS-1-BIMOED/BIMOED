@@ -1,8 +1,11 @@
 import httpx
+from sqlalchemy.orm import Session
 
 from config import settings
 from schemas import RouteStep, SafeZoneResponse
 from utils.geo import haversine_km
+from models.alert import Alert
+from models.safe_zone import SafeZone
 
 
 class RoutingService:
@@ -33,14 +36,27 @@ class RoutingService:
             "format": "json",
         }
         if risk_points:
-            avoid_polygons = []
+            polygons = []
             for p in risk_points[:5]:
                 if p.get("score", 0) >= 70:
                     lat, lng = p["lat"], p["lng"]
-                    d = 0.002
-                    avoid_polygons.append([[lng - d, lat - d], [lng + d, lat - d], [lng + d, lat + d], [lng - d, lat + d]])
-            if avoid_polygons:
-                body["options"] = {"avoid_polygons": avoid_polygons}
+                    d = 0.002  # approx 200m bounding box
+                    # OpenRouteService requires closed polygon rings
+                    ring = [
+                        [lng - d, lat - d],
+                        [lng + d, lat - d],
+                        [lng + d, lat + d],
+                        [lng - d, lat + d],
+                        [lng - d, lat - d]
+                    ]
+                    polygons.append([ring])
+            if polygons:
+                body["options"] = {
+                    "avoid_polygons": {
+                        "type": "MultiPolygon",
+                        "coordinates": polygons
+                    }
+                }
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -98,3 +114,136 @@ class RoutingService:
             ],
             "risk_penalty_applied": risk_penalty,
         }
+
+    # Advanced multi-criteria routing methods
+    @staticmethod
+    def calculate_flood_risk_penalty(db: Session, lat: float, lng: float) -> float:
+        """
+        Calculate flood risk at a location.
+        Returns 0-1 multiplier for route cost (1 = safe, 0.1 = very dangerous).
+        """
+        nearby_alerts = db.query(Alert).filter(
+            Alert.lat.between(lat - 0.1, lat + 0.1),
+            Alert.lng.between(lng - 0.1, lng + 0.1),
+        ).all()
+
+        if not nearby_alerts:
+            return 1.0
+
+        max_severity = max(
+            (
+                3 if a.severity == "critical"
+                else 2 if a.severity == "high"
+                else 1 if a.severity == "moderate"
+                else 0
+            )
+            for a in nearby_alerts
+        )
+
+        penalty = max(0.1, 1.0 - (max_severity * 0.25))
+        return penalty
+
+    @staticmethod
+    def create_multi_route_options(
+        start_lat: float,
+        start_lng: float,
+        end_lat: float,
+        end_lng: float,
+        db: Session,
+    ) -> dict:
+        """
+        Generate multiple route options: fastest, safest, balanced.
+        """
+        routes = {}
+
+        # Fastest route (direct)
+        routes["fastest"] = {
+            "geometry": RoutingService._create_geometry(start_lat, start_lng, end_lat, end_lng, db, "fastest"),
+            "strategy": "Fastest route - direct path",
+        }
+
+        # Safest route (avoiding flood zones)
+        routes["safest"] = {
+            "geometry": RoutingService._create_geometry(start_lat, start_lng, end_lat, end_lng, db, "safest"),
+            "strategy": "Safest route - avoids high-risk areas",
+        }
+
+        # Balanced route
+        routes["balanced"] = {
+            "geometry": RoutingService._create_geometry(start_lat, start_lng, end_lat, end_lng, db, "balanced"),
+            "strategy": "Balanced route - reasonable speed and safety",
+        }
+
+        return routes
+
+    @staticmethod
+    def _create_geometry(start_lat: float, start_lng: float, end_lat: float, end_lng: float, db: Session, method: str) -> list:
+        """Create route geometry based on method."""
+        geometry = [[start_lat, start_lng]]
+
+        # Add intermediate waypoints
+        for i in range(1, 5):
+            ratio = i / 5
+            lat = start_lat + (end_lat - start_lat) * ratio
+            lng = start_lng + (end_lng - start_lng) * ratio
+
+            if method == "safest":
+                # Shift away from high-risk areas
+                lat, lng = RoutingService._shift_from_risk(lat, lng, db, method="aggressive")
+            elif method == "balanced":
+                # Minor risk avoidance
+                lat, lng = RoutingService._shift_from_risk(lat, lng, db, method="mild")
+
+            geometry.append([lat, lng])
+
+        geometry.append([end_lat, end_lng])
+        return geometry
+
+    @staticmethod
+    def _shift_from_risk(lat: float, lng: float, db: Session, method: str = "mild") -> tuple:
+        """Shift waypoint away from flood zones."""
+        penalty = RoutingService.calculate_flood_risk_penalty(db, lat, lng)
+
+        if penalty > 0.7:
+            return (lat, lng)
+
+        nearby_alerts = db.query(Alert).filter(
+            Alert.lat.between(lat - 0.05, lat + 0.05),
+            Alert.lng.between(lng - 0.05, lng + 0.05),
+        ).all()
+
+        if not nearby_alerts:
+            return (lat, lng)
+
+        avg_alert_lat = sum(a.lat for a in nearby_alerts) / len(nearby_alerts)
+        avg_alert_lng = sum(a.lng for a in nearby_alerts) / len(nearby_alerts)
+
+        shift_amount = 0.15 if method == "aggressive" else 0.05
+
+        shift_lat = lat + (lat - avg_alert_lat) * shift_amount
+        shift_lng = lng + (lng - avg_alert_lng) * shift_amount
+
+        return (shift_lat, shift_lng)
+
+    @staticmethod
+    def get_priority_safe_zones(lat: float, lng: float, db: Session, count: int = 3) -> list[dict]:
+        """Find priority evacuation points sorted by distance and safety."""
+        zones = db.query(SafeZone).all()
+
+        scored = []
+        for zone in zones:
+            distance = haversine_km(lat, lng, zone.lat, zone.lng)
+            risk = RoutingService.calculate_flood_risk_penalty(db, zone.lat, zone.lng)
+            score = distance / max(risk, 0.1)
+
+            scored.append({
+                "id": zone.id,
+                "name": zone.name,
+                "lat": zone.lat,
+                "lng": zone.lng,
+                "distance_km": round(distance, 2),
+                "safety": round(risk, 3),
+                "score": round(score, 2),
+            })
+
+        return sorted(scored, key=lambda z: z["score"])[:count]

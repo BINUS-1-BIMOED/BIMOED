@@ -1,8 +1,23 @@
 import math
+import requests
 
 
 def estimate_elevation(lat: float, lng: float) -> float:
-    """SRTM-inspired heuristic for Medan basin when DEM tiles are unavailable."""
+    """Try to fetch real elevation from Open-Meteo API, fall back to heuristic on failure."""
+    try:
+        url = f"https://api.open-meteo.com/v1/elevation?latitude={lat}&longitude={lng}"
+        resp = requests.get(url, timeout=3.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            elevations = data.get("elevation")
+            if elevations and isinstance(elevations, list) and len(elevations) > 0:
+                val = elevations[0]
+                if val is not None:
+                    return round(float(val), 1)
+    except Exception:
+        pass
+
+    # SRTM-inspired heuristic for Medan basin when DEM tiles/API are unavailable
     center_lat, center_lng = 3.5952, 98.6722
     dist = math.sqrt((lat - center_lat) ** 2 + (lng - center_lng) ** 2)
     base = 8.0 + (dist * 120)

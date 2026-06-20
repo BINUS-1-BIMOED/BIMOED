@@ -13,3 +13,7 @@ joblib>=1.4.2
 supabase>=2.11.0
 python-multipart>=0.0.18
 pydantic-settings>=2.6.1
+Pillow>=10.2.0
+opencv-python>=4.10.0
+scipy>=1.14.0
+requests>=2.31.0
