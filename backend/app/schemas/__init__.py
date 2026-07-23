@@ -115,6 +115,28 @@ class EvacuationRouteResponse(BaseModel):
     geometry: list[list[float]]
     steps: list[RouteStep]
     risk_penalty_applied: bool
+    route_strategy: str | None = None
+    weather_forecast_points: list[dict] = []
+
+
+class WeatherForecastHour(BaseModel):
+    hour: int
+    temp: float
+    condition: str
+    icon: str
+    precipitation: float = 0
+
+
+class WeatherResponse(BaseModel):
+    temp: float
+    condition: str
+    humidity: int
+    wind_speed: float
+    precipitation: float
+    river_discharge: float
+    icon: str
+    forecast: list[WeatherForecastHour]
+    source: str = "open_meteo"
 
 
 class SyncBundleResponse(BaseModel):

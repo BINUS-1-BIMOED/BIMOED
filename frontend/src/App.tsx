@@ -130,18 +130,10 @@ export default function App() {
   }
 
   return (
-    <div 
-      className="phone-shell" 
+    <div
+      className="phone-shell"
       data-theme={theme}
-      style={{ 
-        height: '100dvh',
-        width: '100vw',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        margin: 0,
-        borderRadius: 0,
-        border: 'none',
+      style={{
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}

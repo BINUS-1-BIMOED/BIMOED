@@ -4,14 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
+from models.alert import Alert
 from models.sos import SOS
 from schemas import SOSCreate, SOSResponse
-from services.geospatial import nearby_risk_grid
+from services.weather import WeatherService
 from utils.geo import haversine_km
 
 router = APIRouter(prefix="/sos", tags=["sos"])
+weather_service = WeatherService()
 
-# Cooldown duration in minutes
 COOLDOWN_MINUTES = 5
 
 
@@ -22,7 +23,7 @@ def list_sos_alerts(
     radius_km: float = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """Get active SOS alerts near location"""
+    """Get active SOS alerts near location."""
     sos_alerts = (
         db.query(SOS)
         .filter(SOS.status == "active")
@@ -34,9 +35,8 @@ def list_sos_alerts(
 
 
 @router.post("", response_model=SOSResponse, status_code=201)
-def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
-    """Submit SOS alert with validation and cooldown check"""
-    # Cooldown check - prevent spam from same location/user
+async def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
+    """Submit SOS alert with validation and cooldown check."""
     if payload.user_id:
         recent = (
             db.query(SOS)
@@ -53,19 +53,35 @@ def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
                 detail=f"SOS cooldown active. Please wait {COOLDOWN_MINUTES} minutes before submitting another alert.",
             )
 
-    # Location validation - check if location is near high-risk area
-    risk_points = nearby_risk_grid(payload.lat, payload.lng)
-    max_risk = max((p.score for p in risk_points), default=0)
+    risk_points = await weather_service.build_risk_grid(db, payload.lat, payload.lng)
+    current_points = [p for p in risk_points if p.get("hour_offset", 0) == 0]
+    max_risk = max((p["score"] for p in current_points), default=0)
+    max_rain = max((p.get("rainfall_mm", 0) for p in current_points), default=0)
 
-    # Only allow SOS in moderate to critical risk areas
-    if max_risk < 40:
+    if max_risk < 35 and max_rain < 1.0:
         raise HTTPException(
             status_code=400,
-            detail="SOS can only be submitted in flood-risk areas (risk score >= 40)",
+            detail="SOS can only be submitted in flood-risk areas (risk score >= 35 or active rainfall)",
         )
 
     sos = SOS(**payload.model_dump())
     db.add(sos)
+
+    severity = "critical" if payload.urgency == "critical" else "high" if payload.urgency == "medium" else "moderate"
+    alert = Alert(
+        title=f"SOS Emergency ({payload.urgency})",
+        location=f"Near {payload.lat:.4f}, {payload.lng:.4f}",
+        lat=payload.lat,
+        lng=payload.lng,
+        severity=severity,
+        source="sos",
+        description=(
+            f"Age: {payload.age}. "
+            f"{'Person with disability. ' if payload.is_disabled else ''}"
+            f"{payload.description or 'Immediate assistance required.'}"
+        ),
+    )
+    db.add(alert)
     db.commit()
     db.refresh(sos)
     return sos
@@ -73,7 +89,7 @@ def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
 
 @router.patch("/{sos_id}/resolve", response_model=SOSResponse)
 def resolve_sos(sos_id: int, db: Session = Depends(get_db)):
-    """Mark SOS alert as resolved"""
+    """Mark SOS alert as resolved."""
     sos = db.query(SOS).filter(SOS.id == sos_id).first()
     if not sos:
         raise HTTPException(status_code=404, detail="SOS alert not found")

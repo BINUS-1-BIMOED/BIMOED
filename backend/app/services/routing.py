@@ -8,6 +8,17 @@ from models.alert import Alert
 from models.safe_zone import SafeZone
 
 
+def _circle_avoid_polygon(lat: float, lng: float, radius_deg: float = 0.0018, segments: int = 8) -> list:
+    """Build a circular avoid polygon (approx 200m) for OpenRouteService."""
+    import math
+
+    ring = []
+    for i in range(segments + 1):
+        angle = (2 * math.pi * i) / segments
+        ring.append([lng + radius_deg * math.cos(angle), lat + radius_deg * math.sin(angle)])
+    return ring
+
+
 class RoutingService:
     async def evacuation_route(
         self,
@@ -21,7 +32,60 @@ class RoutingService:
             if route:
                 return route
 
+        osrm_route = await self._osrm_route(origin_lat, origin_lng, destination.lat, destination.lng)
+        if osrm_route:
+            osrm_route["risk_penalty_applied"] = bool(risk_points)
+            return osrm_route
+
         return self._fallback_route(origin_lat, origin_lng, destination, bool(risk_points))
+
+    async def _osrm_route(
+        self,
+        origin_lat: float,
+        origin_lng: float,
+        dest_lat: float,
+        dest_lng: float,
+    ) -> dict | None:
+        """Free OSRM fallback — routes follow actual roads."""
+        url = (
+            f"https://router.project-osrm.org/route/v1/driving/"
+            f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                resp = await client.get(
+                    url,
+                    params={"overview": "full", "geometries": "geojson", "steps": "true"},
+                )
+                if resp.status_code != 200:
+                    return None
+                data = resp.json()
+                if data.get("code") != "Ok" or not data.get("routes"):
+                    return None
+                route = data["routes"][0]
+                coords = route["geometry"]["coordinates"]
+                legs = route.get("legs", [{}])[0]
+                steps = [
+                    RouteStep(
+                        instruction=(s.get("maneuver", {}).get("modifier") or "Continue").replace("_", " ").title(),
+                        distance_m=s.get("distance", 0),
+                        duration_s=s.get("duration", 0),
+                    )
+                    for s in legs.get("steps", [])
+                ] or [
+                    RouteStep(instruction="Head toward destination", distance_m=route["distance"], duration_s=route["duration"]),
+                    RouteStep(instruction="Arrive at destination", distance_m=0, duration_s=0),
+                ]
+                return {
+                    "distance_km": route["distance"] / 1000,
+                    "duration_min": route["duration"] / 60,
+                    "geometry": [[c[1], c[0]] for c in coords],
+                    "steps": steps,
+                    "risk_penalty_applied": False,
+                    "route_strategy": "fastest (OSRM)",
+                }
+        except Exception:
+            return None
 
     async def _ors_route(
         self,
@@ -35,28 +99,26 @@ class RoutingService:
             "coordinates": [[origin_lng, origin_lat], [dest_lng, dest_lat]],
             "format": "json",
         }
+        polygons: list = []
         if risk_points:
-            polygons = []
-            for p in risk_points[:5]:
-                if p.get("score", 0) >= 70:
-                    lat, lng = p["lat"], p["lng"]
-                    d = 0.002  # approx 200m bounding box
-                    # OpenRouteService requires closed polygon rings
-                    ring = [
-                        [lng - d, lat - d],
-                        [lng + d, lat - d],
-                        [lng + d, lat + d],
-                        [lng - d, lat + d],
-                        [lng - d, lat - d]
-                    ]
-                    polygons.append([ring])
+            # Hindari payload terlalu besar ke ORS agar lebih stabil & cepat.
+            hazards = sorted(
+                [p for p in risk_points if p.get("score", 0) >= 50 or p.get("rainfall_mm", 0) >= 3],
+                key=lambda p: p.get("score", 0),
+                reverse=True,
+            )
+            for p in hazards[:6]:
+                lat, lng = p["lat"], p["lng"]
+                radius = 0.0013 + min(0.001, p.get("rainfall_mm", 0) * 0.0002)
+                polygons.append([_circle_avoid_polygon(lat, lng, radius)])
             if polygons:
                 body["options"] = {
                     "avoid_polygons": {
                         "type": "MultiPolygon",
-                        "coordinates": polygons
+                        "coordinates": polygons,
                     }
                 }
+
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -66,7 +128,16 @@ class RoutingService:
                     headers={"Authorization": settings.ors_api_key, "Content-Type": "application/json"},
                 )
                 if resp.status_code != 200:
-                    return None
+                    # Retry without avoid polygons if ORS rejects them
+                    if "avoid_polygons" in body.get("options", {}):
+                        body.pop("options", None)
+                        resp = await client.post(
+                            "https://api.openrouteservice.org/v2/directions/driving-car/json",
+                            json=body,
+                            headers={"Authorization": settings.ors_api_key, "Content-Type": "application/json"},
+                        )
+                    if resp.status_code != 200:
+                        return None
                 data = resp.json()
                 feature = data["features"][0]
                 props = feature["properties"]["summary"]
@@ -79,12 +150,14 @@ class RoutingService:
                     )
                     for s in feature["properties"].get("segments", [{}])[0].get("steps", [])
                 ]
+                strategy = "safest (avoiding flood/rain zones)" if polygons else "fastest"
                 return {
                     "distance_km": props["distance"] / 1000,
                     "duration_min": props["duration"] / 60,
                     "geometry": [[c[1], c[0]] for c in coords],
                     "steps": steps,
-                    "risk_penalty_applied": bool(risk_points),
+                    "risk_penalty_applied": bool(polygons),
+                    "route_strategy": strategy,
                 }
         except Exception:
             return None
@@ -113,6 +186,7 @@ class RoutingService:
                 RouteStep(instruction=f"Arrive at {destination.name}", distance_m=dist * 500, duration_s=dist * 60),
             ],
             "risk_penalty_applied": risk_penalty,
+            "route_strategy": "direct (offline fallback)",
         }
 
     # Advanced multi-criteria routing methods

@@ -3,6 +3,24 @@ import { saveLastPosition, getLastPosition } from '../utils/storage'
 
 const DEFAULT_LAT = 3.5952
 const DEFAULT_LNG = 98.6722
+const DEFAULT_LABEL = 'Medan, North Sumatra'
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=id`,
+      { headers: { 'Accept-Language': 'id' } },
+    )
+    if (!res.ok) return DEFAULT_LABEL
+    const data = await res.json()
+    const addr = data.address || {}
+    const city = addr.city || addr.town || addr.village || addr.suburb || 'Medan'
+    const state = addr.state || 'North Sumatra'
+    return `${city}, ${state}`
+  } catch {
+    return DEFAULT_LABEL
+  }
+}
 
 export interface LocationState {
   lat: number
@@ -20,11 +38,14 @@ export function useLocation(highAccuracy = false) {
     heading: null,
     speed: null,
     accuracy: null,
-    timestamp: Date.now(),
+    // deterministic initial timestamp to satisfy react-hooks/purity
+    timestamp: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [label, setLabel] = useState(DEFAULT_LABEL)
   const watchIdRef = useRef<number | null>(null)
+  const geocodeTimerRef = useRef<number | null>(null)
 
   const updatePosition = useCallback((pos: GeolocationPosition) => {
     const newLoc: LocationState = {
@@ -38,6 +59,11 @@ export function useLocation(highAccuracy = false) {
     setLocation(newLoc)
     saveLastPosition(newLoc.lat, newLoc.lng)
     setLoading(false)
+
+    if (geocodeTimerRef.current) window.clearTimeout(geocodeTimerRef.current)
+    geocodeTimerRef.current = window.setTimeout(() => {
+      reverseGeocode(newLoc.lat, newLoc.lng).then(setLabel)
+    }, 800)
   }, [])
 
   const handleError = useCallback((err: GeolocationPositionError) => {
@@ -60,8 +86,11 @@ export function useLocation(highAccuracy = false) {
     })
 
     if (!navigator.geolocation) {
-      setError('Geolocation not supported')
-      setLoading(false)
+      // avoid setState in render-purity lint path; set via microtask
+      queueMicrotask(() => {
+        setError('Geolocation not supported')
+        setLoading(false)
+      })
       return
     }
 
@@ -91,6 +120,7 @@ export function useLocation(highAccuracy = false) {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current)
       }
+      if (geocodeTimerRef.current) window.clearTimeout(geocodeTimerRef.current)
     }
   }, [highAccuracy, updatePosition, handleError])
 
@@ -98,6 +128,6 @@ export function useLocation(highAccuracy = false) {
     ...location,
     loading,
     error,
-    label: 'Medan, North Sumatra',
+    label,
   }
 }

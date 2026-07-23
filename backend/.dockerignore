@@ -1,0 +1,10 @@
+app/.venv
+app/__pycache__
+**/__pycache__
+*.pyc
+app/dev.db
+app/uploads
+app/.env
+app/nul
+venv
+nul

@@ -113,6 +113,9 @@ class FloodPredictor:
 
     def predict(self, rainfall_mm: float, river_discharge: float, lat: float, lng: float, historical_factor: float = 0.5) -> float:
         elev = estimate_elevation(lat, lng)
-        features = np.array([[rainfall_mm, river_discharge, elev, historical_factor]])
+        features = pd.DataFrame(
+            [[rainfall_mm, river_discharge, elev, historical_factor]],
+            columns=["rainfall_mm", "river_discharge", "elevation_m", "historical_factor"],
+        )
         pred = float(self.model.predict(features)[0]) if self.model else 50.0
         return round(min(99, max(5, pred)), 1)

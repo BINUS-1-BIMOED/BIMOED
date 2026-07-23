@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" --max-time 30 \"http://127.0.0.1:8010/api/v1/risk?lat=3.5952&lng=98.6722\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" --max-time 20 \"http://127.0.0.1:8010/api/v1/alerts?lat=3.5952&lng=98.6722\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" --max-time 20 \"http://127.0.0.1:8010/api/v1/reports/nearby?lat=3.5952&lng=98.6722&radius_km=8\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" --max-time 30 \"http://127.0.0.1:8010/api/v1/sync/bundle?region=medan&lat=3.5952&lng=98.6722\")",
+      "Bash(curl -s -o /dev/null -w \"frontend: %{http_code}\\\\n\" --max-time 15 http://127.0.0.1:5180/)",
+      "Bash(curl -s -o /dev/null -w \"frontend: %{http_code}\\\\n\" --max-time 15 \"http://[::1]:5180/\")",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(sed -E 's/=.+/=<hidden>/' .env)",
+      "Bash(sed -E 's/=.+/=<hidden>/' frontend/.env)",
+      "Bash(gh repo *)",
+      "Bash(curl -s \"https://api.github.com/repos/TimothyFs11/BIMOED\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" \"https://api.github.com/repos/TimothyFs11/BIMOED\")",
+      "Bash(curl -s \"https://api.github.com/repositories/1261323146\")"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { getEvacuationRoute } from '../api/client'
 import type { EvacuationRoute, SafeZone } from '../api/types'
+
 import { haversineKm, bearing } from '../utils/geo'
 
 export interface NavigationState {
@@ -25,7 +26,7 @@ export interface UseNavigationReturn extends NavigationState {
 }
 
 const REROUTE_DEVIATION_KM = 0.15 // 150m deviation triggers reroute
-const STEP_ARRIVAL_M = 30 // within 30m of step end = completed
+
 
 /**
  * Find the closest point on a polyline to a given position.
@@ -173,14 +174,15 @@ export function useNavigation(): UseNavigationReturn {
     })
   }, [updateNavigationState])
 
-  const updatePosition = useCallback((lat: number, lng: number, heading?: number | null) => {
+  const updatePosition = useCallback((lat: number, lng: number, _heading?: number | null) => {
     const route = routeRef.current
     if (!route || !activeRef.current) return
 
     const geometry = route.geometry
     if (geometry.length < 2) return
 
-    const { segmentIndex, totalProgress, minDistKm } = closestPointOnRoute(geometry, lat, lng)
+    const { totalProgress, minDistKm } = closestPointOnRoute(geometry, lat, lng)
+
 
     // Check for deviation
     const deviation = minDistKm > REROUTE_DEVIATION_KM

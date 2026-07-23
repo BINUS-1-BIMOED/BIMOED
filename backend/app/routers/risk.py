@@ -5,12 +5,24 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from ml.risk_scorer import RiskScorer
-from schemas import RiskHistoryPoint, RiskHistoryResponse, RiskResponse
+from schemas import RiskHistoryPoint, RiskHistoryResponse, RiskResponse, WeatherResponse
 from services.weather import WeatherService
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 scorer = RiskScorer()
 weather_service = WeatherService()
+
+
+@router.get("/weather", response_model=WeatherResponse)
+async def get_weather(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    db: Session = Depends(get_db),
+):
+    """Real-time weather from Open-Meteo for the home screen."""
+    open_meteo = await weather_service.fetch_open_meteo(lat, lng)
+    weather_service.cache_weather(db, lat, lng, "open_meteo", open_meteo)
+    return weather_service.build_weather_response(open_meteo, lat, lng)
 
 
 @router.get("", response_model=RiskResponse)

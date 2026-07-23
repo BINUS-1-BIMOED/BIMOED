@@ -181,8 +181,8 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
             <svg width="64" height="64" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <h3>SOS Alert Sent!</h3>
-            <p>Help is on the way. Emergency services have been notified.</p>
+            <h3>SOS Alert Terkirim!</h3>
+            <p>Lokasi Anda telah dicatat dan alert darurat dibuat. Hubungi BPBD Medan (061-451-1234) atau layanan darurat 112/110/113 jika perlu.</p>
           </div>
         )}
 

@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Circle, MapContainer, Marker, Polyline, TileLayer, Popup } from 'react-leaflet'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MapContainer, Marker, Polygon, Polyline, TileLayer, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getSyncBundle, getEvacuationRoute, isOnline } from '../api/client'
-import type { EvacuationRoute, RiskGridPoint, SafeZone } from '../api/types'
+import { getAlerts, getNearbyReports, getSyncBundle, isOnline } from '../api/client'
+
+import type { Alert, EvacuationRoute, ReportResponse, RiskGridPoint, SafeZone } from '../api/types'
 import { MapController, MapResizeFix } from '../components/MapController'
 import { useLocation } from '../hooks/useLocation'
 import { useNavigation } from '../hooks/useNavigation'
-import { scoreToRiskClass } from '../utils/format'
+import { scoreToRiskClass, timeAgo } from '../utils/format'
 import { formatDistance, formatDuration, haversineKm, bearing } from '../utils/geo'
+
+// How often the map polls the backend for live conditions (alerts, reports, risk).
+const LIVE_REFRESH_MS = 60_000
 
 interface MapScreenProps {
   onNavigate: (screen: string) => void
@@ -96,6 +100,67 @@ const rainyIcon = L.divIcon({
   iconSize: [12, 12],
   iconAnchor: [6, 6],
 })
+
+// ---- Live incident markers (real SOS/alert events reported or detected, not model output) ----
+const ALERT_COLORS: Record<string, string> = {
+  critical: '#EA4335',
+  high: '#FB8C00',
+  moderate: '#F9AB00',
+  low: '#FBBC04',
+}
+
+function createAlertIcon(severity: string): L.DivIcon {
+  const color = ALERT_COLORS[severity] || ALERT_COLORS.high
+  return L.divIcon({
+    className: 'gmaps-alert-marker',
+    html: `
+      <div class="gmaps-alert-pulse" style="background:${color}"></div>
+      <div class="gmaps-alert-pin" style="background:${color}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  })
+}
+
+// ---- Community-reported incident markers (citizen reports, not computed risk) ----
+const REPORT_EMOJI: Record<string, string> = {
+  flood: '🌊',
+  landslide: '⛰️',
+  blockage: '🚧',
+  evacuation: '🏃',
+  safe_zone: '🛡️',
+  other: '⚠️',
+}
+
+function createReportIcon(category: string, verified: boolean): L.DivIcon {
+  const emoji = REPORT_EMOJI[category] || REPORT_EMOJI.other
+  return L.divIcon({
+    className: 'gmaps-report-marker',
+    html: `<div class="gmaps-report-pin ${verified ? 'verified' : ''}">${emoji}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  })
+}
+
+/** Organic blob polygon around a point — softer than square grid circles */
+function organicBlobRing(lat: number, lng: number, radiusM: number, seed: number, segments = 14): [number, number][] {
+  const points: [number, number][] = []
+  const latRad = (lat * Math.PI) / 180
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * 2 * Math.PI
+    const wobble = 0.62 + 0.38 * Math.sin(seed * 2.17 + i * 1.41)
+    const r = radiusM * wobble
+    const dLat = (r / 111320) * Math.cos(angle)
+    const dLng = (r / (111320 * Math.cos(latRad))) * Math.sin(angle)
+    points.push([lat + dLat, lng + dLng])
+  }
+  return points
+}
 
 // ---- Google Maps-like route arrow icon ----
 function createRouteArrowIcon(heading: number): L.DivIcon {
@@ -190,9 +255,30 @@ function useMapTheme() {
   return dark
 }
 
+/** Small "Live" badge showing how recently risk/alert data was pulled from the backend. */
+function LiveSyncBadge({ lastSync }: { lastSync: number }) {
+  const [secondsAgo, setSecondsAgo] = useState(0)
+
+  useEffect(() => {
+    const tick = () => setSecondsAgo(Math.max(0, Math.round((Date.now() - lastSync) / 1000)))
+    tick()
+    const t = window.setInterval(tick, 1000)
+    return () => window.clearInterval(t)
+  }, [lastSync])
+
+  const label = secondsAgo < 60 ? `${secondsAgo}s ago` : `${Math.round(secondsAgo / 60)}m ago`
+
+  return (
+    <div className="gmaps-live-badge">
+      <span className="gmaps-live-dot" />
+      Live · updated {label}
+    </div>
+  )
+}
+
 export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScreenProps) {
   const location = useLocation(true) // high accuracy for navigation
-  const { lat, lng, heading } = location
+  const { lat, lng, heading, label: locationLabel } = location
   const dark = useMapTheme()
   const [activeLayer, setActiveLayer] = useState(initialMode)
   const [selectedZone, setSelectedZone] = useState<RiskGridPoint | null>(null)
@@ -200,6 +286,9 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
   const [routeActive, setRouteActive] = useState(false)
   const [riskGrid, setRiskGrid] = useState<RiskGridPoint[]>([])
   const [safeZones, setSafeZones] = useState<SafeZone[]>([])
+  const [liveAlerts, setLiveAlerts] = useState<Alert[]>([])
+  const [liveReports, setLiveReports] = useState<ReportResponse[]>([])
+  const [lastLiveSync, setLastLiveSync] = useState<number | null>(null)
   const [route, setRoute] = useState<EvacuationRoute | null>(null)
   const [loadingRoute, setLoadingRoute] = useState(false)
   const [mapZoom, setMapZoom] = useState(15)
@@ -214,19 +303,45 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
 
   const center: [number, number] = useMemo(() => [lat, lng], [lat, lng])
 
+  // Only show current-hour forecast points on map (not +2h/+4h duplicates)
+  const displayRiskGrid = useMemo(
+    () => riskGrid.filter((z) => (z.hour_offset ?? 0) === 0),
+    [riskGrid],
+  )
+
+  const rainZones = useMemo(
+    () => displayRiskGrid.filter((z) => (z.rainfall_mm ?? 0) >= 0.5),
+    [displayRiskGrid],
+  )
+
   const tileUrl = dark
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 
   const [offlineMap, setOfflineMap] = useState(false)
 
-  // Load risk grid & safe zones
+  void offlineMap
+
+  // Keep latest position available to the polling interval without resubscribing it.
+  const positionRef = useRef({ lat, lng })
   useEffect(() => {
+    positionRef.current = { lat, lng }
+  }, [lat, lng])
+
+  // Pull current risk grid, safe zones, and real reported/detected incidents (SOS + AI alerts + community reports).
+  const loadLiveData = useCallback((originLat: number, originLng: number) => {
     setOfflineMap(!isOnline())
-    getSyncBundle(lat, lng)
-      .then((bundle) => {
+    Promise.all([
+      getSyncBundle(originLat, originLng),
+      getAlerts(originLat, originLng),
+      getNearbyReports(originLat, originLng, 8).catch(() => []),
+    ])
+      .then(([bundle, alerts, reports]) => {
         setRiskGrid(bundle.risk_grid)
         setSafeZones(bundle.safe_zones)
+        setLiveAlerts(alerts)
+        setLiveReports(reports.filter((r) => r.validation_status !== 'flagged'))
+        setLastLiveSync(Date.now())
         setOfflineMap(false)
       })
       .catch(() => {
@@ -234,7 +349,22 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
           setOfflineMap(true)
         }
       })
-  }, [lat, lng])
+  }, [])
+
+  // Refresh whenever the user's position changes meaningfully.
+  useEffect(() => {
+    loadLiveData(lat, lng)
+  }, [lat, lng, loadLiveData])
+
+  // Also poll on a fixed cadence so conditions update even while stationary — this is what
+  // makes the map "live" instead of a one-time snapshot from when the screen opened.
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!isOnline()) return
+      loadLiveData(positionRef.current.lat, positionRef.current.lng)
+    }, LIVE_REFRESH_MS)
+    return () => window.clearInterval(interval)
+  }, [loadLiveData])
 
   // Update navigation position in real-time
   useEffect(() => {
@@ -292,8 +422,8 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
 
   // ---- Flood Danger Zones (high risk areas to avoid) ----
   const dangerZones = useMemo(() => {
-    return riskGrid.filter((z) => z.score >= 65) // High + Critical
-  }, [riskGrid])
+    return displayRiskGrid.filter((z) => z.score >= 65)
+  }, [displayRiskGrid])
 
   // ---- Compute safe corridor (route segments that avoid flood) ----
   const safeRouteSegments = useMemo(() => {
@@ -365,9 +495,7 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
   ]
 
   // ---- Map follow mode - toggle when user manually pans ----
-  const handleMapMove = useCallback(() => {
-    if (followMode) setFollowMode(false)
-  }, [followMode])
+
 
   const recenterToUser = useCallback(() => {
     setFollowMode(true)
@@ -406,25 +534,25 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
           zIndexOffset={1000}
         />
 
-        {/* ---- Flood Risk Circles ---- */}
+        {/* ---- Flood risk — organic blob overlays from real weather data ---- */}
         {(activeLayer === 'risk' || activeLayer === 'route') &&
-          riskGrid.map((zone, idx) => {
+          displayRiskGrid.map((zone, idx) => {
             const risk = scoreToRiskClass(zone.score)
             const color = RISK_COLORS[risk]
-            const radius = 180 + zone.score * 4
+            const radiusM = 140 + zone.score * 3 + (zone.rainfall_mm ?? 0) * 25
             const isHighRisk = zone.score >= 65
+            const blob = organicBlobRing(zone.lat, zone.lng, radiusM, idx + zone.score)
 
             return (
-              <Circle
+              <Polygon
                 key={`risk-${idx}`}
-                center={[zone.lat, zone.lng]}
-                radius={radius}
+                positions={blob}
                 pathOptions={{
-                  color,
+                  color: 'transparent',
                   fillColor: color,
-                  fillOpacity: isNavigating && isHighRisk ? 0.35 : selectedZone === zone ? 0.35 : 0.22,
-                  weight: selectedZone === zone ? 3 : isHighRisk && showDangerZones ? 2 : 1.5,
-                  dashArray: isHighRisk && !isNavigating ? '4 6' : undefined,
+                  fillOpacity: isNavigating && isHighRisk ? 0.32 : selectedZone === zone ? 0.34 : 0.2,
+                  weight: 0,
+                  className: 'map-risk-blob',
                 }}
                 eventHandlers={{
                   click: () => {
@@ -439,27 +567,103 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
                       ⚠️ {RISK_LABELS[risk]} Flood Risk — {zone.score}%
                       <br />
                       <span style={{ color: '#5f6368', fontSize: '11px' }}>
-                        Avoid this area if possible
+                        Rain: {zone.rainfall_mm?.toFixed(1) ?? '0'}mm · Elevation {zone.elevation_m?.toFixed(1) ?? '—'}m
                       </span>
                     </div>
                   </Popup>
                 )}
-              </Circle>
+              </Polygon>
             )
           })}
 
-        {/* ---- Rainy Markers (moderate+ risk) ---- */}
+        {/* ---- Rain zones — soft blue natural blobs ---- */}
         {(activeLayer === 'risk' || activeLayer === 'route') &&
-          riskGrid
-            .filter((zone) => zone.score >= 40)
+          rainZones.map((zone, idx) => {
+            const rainRadius = 100 + (zone.rainfall_mm ?? 0) * 45
+            const blob = organicBlobRing(zone.lat, zone.lng, rainRadius, idx * 3.7 + (zone.rainfall_mm ?? 0))
+            return (
+              <Polygon
+                key={`rain-${idx}`}
+                positions={blob}
+                pathOptions={{
+                  color: 'transparent',
+                  fillColor: '#3B82F6',
+                  fillOpacity: 0.12 + Math.min(0.25, (zone.rainfall_mm ?? 0) / 20),
+                  weight: 0,
+                  className: 'map-rain-blob',
+                }}
+                interactive={false}
+              />
+            )
+          })}
+
+        {/* ---- Rain intensity markers at center of heavy rain ---- */}
+        {(activeLayer === 'risk' || activeLayer === 'route') &&
+          rainZones
+            .filter((zone) => (zone.rainfall_mm ?? 0) >= 2)
             .map((zone, idx) => (
               <Marker
                 key={`rainy-${idx}`}
                 position={[zone.lat, zone.lng]}
                 icon={rainyIcon}
-                title={`Rain zone - Risk ${zone.score}%`}
+                title={`Rain ${zone.rainfall_mm?.toFixed(1)}mm · Risk ${zone.score}%`}
               />
             ))}
+
+        {/* ---- Live alerts — real SOS emergencies & AI-detected high-risk events, not computed heuristics ---- */}
+        {liveAlerts.map((alert) => (
+          <Marker
+            key={`alert-${alert.id}`}
+            position={[alert.lat, alert.lng]}
+            icon={createAlertIcon(alert.severity)}
+            zIndexOffset={800}
+          >
+            <Popup>
+              <div style={{ fontSize: '12px', fontWeight: 500 }}>
+                🚨 {alert.title}
+                <br />
+                <span style={{ color: '#5f6368', fontSize: '11px' }}>
+                  {alert.description}
+                  <br />
+                  {alert.location} · {timeAgo(alert.created_at)}
+                </span>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ---- Community-reported incidents — real citizen reports, filtered to non-flagged ---- */}
+        {(activeLayer === 'risk' || activeLayer === 'route') &&
+          liveReports.map((report) => (
+            <Marker
+              key={`report-${report.id}`}
+              position={[report.lat, report.lng]}
+              icon={createReportIcon(report.category, report.validation_status === 'verified')}
+              zIndexOffset={400}
+            >
+              <Popup>
+                <div style={{ fontSize: '12px', fontWeight: 500 }}>
+                  {REPORT_EMOJI[report.category] ?? '⚠️'} {report.category} report
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      color: report.validation_status === 'verified' ? '#34A853' : '#F9AB00',
+                    }}
+                  >
+                    {report.validation_status === 'verified' ? 'Verified' : 'Unverified'}
+                  </span>
+                  <br />
+                  <span style={{ color: '#5f6368', fontSize: '11px' }}>
+                    {report.description || 'No description'}
+                    <br />
+                    {timeAgo(report.created_at)}
+                  </span>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* ---- Safe Zones / Evacuation Centers ---- */}
         {(activeLayer === 'safe' || activeLayer === 'route' || routeActive) &&
@@ -603,9 +807,14 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
           <svg width="18" height="18" fill="none" stroke="#5f6368" strokeWidth="2" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          <input type="text" readOnly value="Medan, North Sumatra" className="gmaps-search-input" />
+          <input type="text" readOnly value={locationLabel} className="gmaps-search-input" />
         </div>
       </div>
+
+      {/* ---- Live sync indicator ---- */}
+      {!isNavigating && lastLiveSync != null && (
+        <LiveSyncBadge lastSync={lastLiveSync} />
+      )}
 
       {/* ---- Layer Chips ---- */}
       {!isNavigating && (
@@ -740,7 +949,11 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
                 {RISK_LABELS[scoreToRiskClass(selectedZone.score)]}
               </span>
               <h3 className="gmaps-sheet-title">Flood risk {selectedZone.score}%</h3>
-              <p className="gmaps-sheet-sub">Elevation {selectedZone.elevation_m?.toFixed(1) ?? '—'}m · Tap route to evacuate</p>
+              <p className="gmaps-sheet-sub">
+                Elevation {selectedZone.elevation_m?.toFixed(1) ?? '—'}m
+                {(selectedZone.rainfall_mm ?? 0) > 0 ? ` · Rain ${selectedZone.rainfall_mm?.toFixed(1)}mm` : ''}
+                {' · '}Tap route to evacuate
+              </p>
               {selectedZone.score >= 65 && (
                 <p className="gmaps-sheet-warning">⚠️ High risk area — choose a safe route</p>
               )}
@@ -786,7 +999,8 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
             <p className="gmaps-route-dest">{route.destination.name}</p>
             <p className="gmaps-route-meta">
               {route.distance_km} km · ~{Math.round(route.duration_min)} min
-              {route.risk_penalty_applied ? ' · avoiding flood zones' : ''}
+              {route.risk_penalty_applied ? ' · avoiding flood/rain zones' : ''}
+              {route.route_strategy ? ` · ${route.route_strategy}` : ''}
             </p>
           </div>
           <button

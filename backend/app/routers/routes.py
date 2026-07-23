@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.safe_zone import SafeZone
 from schemas import EvacuationRouteRequest, EvacuationRouteResponse, SafeZoneResponse
-from services.geospatial import nearby_risk_grid
 from services.routing import RoutingService
+from services.weather import WeatherService
 from utils.geo import haversine_km
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 routing = RoutingService()
+weather_service = WeatherService()
 
 
 @router.post("/evacuation", response_model=EvacuationRouteResponse)
@@ -47,7 +48,15 @@ async def evacuation_route(payload: EvacuationRouteRequest, db: Session = Depend
         distance_km=round(haversine_km(payload.origin_lat, payload.origin_lng, zone.lat, zone.lng), 2),
     )
 
-    risk_points = nearby_risk_grid(payload.origin_lat, payload.origin_lng)
+    # Routing membutuhkan yang cepat: cukup titik risk yang relevan.
+    risk_points = await weather_service.build_weather_forecast_points(
+        db,
+        payload.origin_lat,
+        payload.origin_lng,
+        score_threshold=45,
+        sample_count=12,
+    )
+
     route = await routing.evacuation_route(payload.origin_lat, payload.origin_lng, dest, risk_points)
 
     return EvacuationRouteResponse(
@@ -57,4 +66,6 @@ async def evacuation_route(payload: EvacuationRouteRequest, db: Session = Depend
         geometry=route["geometry"],
         steps=route["steps"],
         risk_penalty_applied=route["risk_penalty_applied"],
+        route_strategy=route.get("route_strategy"),
+        weather_forecast_points=risk_points[:12],
     )

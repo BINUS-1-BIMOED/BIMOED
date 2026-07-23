@@ -66,6 +66,28 @@ export function getRisk(lat: number, lng: number): Promise<RiskData> {
   return request(`/risk?lat=${lat}&lng=${lng}`)
 }
 
+export interface BackendWeatherData {
+  temp: number
+  condition: string
+  humidity: number
+  wind_speed: number
+  precipitation: number
+  river_discharge: number
+  icon: string
+  source: string
+  forecast: {
+    hour: number
+    temp: number
+    condition: string
+    icon: string
+    precipitation: number
+  }[]
+}
+
+export function getBackendWeather(lat: number, lng: number): Promise<BackendWeatherData> {
+  return request(`/risk/weather?lat=${lat}&lng=${lng}`)
+}
+
 export function getRiskHistory(lat: number, lng: number, hours = 12): Promise<{ points: RiskHistoryPoint[] }> {
   return request(`/risk/history?lat=${lat}&lng=${lng}&hours=${hours}`)
 }
@@ -76,6 +98,10 @@ export function getAlerts(lat: number, lng: number, radiusKm = 15): Promise<Aler
 
 export function getSafeZones(lat: number, lng: number): Promise<SafeZone[]> {
   return request(`/safe-zones?lat=${lat}&lng=${lng}`)
+}
+
+export function getNearbyReports(lat: number, lng: number, radiusKm = 5): Promise<ReportResponse[]> {
+  return request(`/reports/nearby?lat=${lat}&lng=${lng}&radius_km=${radiusKm}`)
 }
 
 export function submitReport(payload: ReportPayload): Promise<ReportResponse> {
@@ -174,11 +200,14 @@ export async function getGoogleWeather(lat: number, lng: number): Promise<{
   current: GoogleWeatherData;
   forecast: GoogleForecastHour[];
 }> {
-  const key = 'AIzaSyCfB0aXDl9DvPERacbsbKk9N0aF9C0wsco'
+  const key = import.meta.env.VITE_GOOGLE_WEATHER_KEY
+  if (!key) {
+    throw new Error('Google Weather API key not configured')
+  }
   const currentUrl = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${key}&location.latitude=${lat}&location.longitude=${lng}`
   const forecastUrl = `https://weather.googleapis.com/v1/forecast/hours:lookup?key=${key}&location.latitude=${lat}&location.longitude=${lng}`
 
-  const cacheKey = 'weather:google'
+  const cacheKey = `weather:google:${lat.toFixed(2)}:${lng.toFixed(2)}`
 
   try {
     const [currentRes, forecastRes] = await Promise.all([

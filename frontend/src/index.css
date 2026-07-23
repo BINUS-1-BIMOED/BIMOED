@@ -1,4 +1,4 @@
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap');
+ @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap');
 
 :root,
 [data-theme="dark"] {
@@ -113,17 +113,27 @@ body {
   background: var(--root-bg);
 }
 
+/* On a real phone (narrow viewport) the app fills the screen edge-to-edge, same as
+   any installed PWA. On wider viewports it's framed like a phone instead of the
+   mobile-first layout stretching full width. */
 .phone-shell {
-  width: 390px;
-  height: 844px;
+  width: 100%;
+  height: 100dvh;
+  max-width: 480px;
   background: var(--bg);
-  border-radius: 44px;
-  border: 1px solid var(--shell-border);
   overflow: hidden;
   position: relative;
-  box-shadow: var(--phone-shadow);
   display: flex;
   flex-direction: column;
+}
+
+@media (min-width: 481px) {
+  .phone-shell {
+    height: min(844px, 92dvh);
+    border-radius: 44px;
+    border: 1px solid var(--shell-border);
+    box-shadow: var(--phone-shadow);
+  }
 }
 
 .status-bar {
@@ -1912,6 +1922,17 @@ body {
   border-color: var(--border);
 }
 
+/* Natural map overlays — soft blob edges instead of hard circles */
+.map-risk-blob,
+.map-rain-blob {
+  filter: blur(2px);
+  transition: fill-opacity 0.3s ease;
+}
+
+.leaflet-interactive.map-risk-blob:hover {
+  filter: blur(1px);
+}
+
 /* Rainy Map Marker */
 .gmaps-rainy-marker .gmaps-rainy-dot {
   width: 12px;
@@ -1931,6 +1952,94 @@ body {
     transform: scale(1.2);
     opacity: 1;
   }
+}
+
+/* Live incident markers — real SOS/alert events, not computed risk */
+.gmaps-alert-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.gmaps-alert-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+.gmaps-alert-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  opacity: 0.45;
+  animation: alert-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes alert-pulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+/* Community-reported incident markers */
+.gmaps-report-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.gmaps-report-pin {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-card, #fff);
+  border: 2px solid #F9AB00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.gmaps-report-pin.verified {
+  border-color: #34A853;
+}
+
+.gmaps-live-badge {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.92));
+  color: var(--text-secondary, #5f6368);
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 400;
+  pointer-events: none;
+}
+
+.gmaps-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34A853;
+  animation: rain-pulse 2s ease-in-out infinite;
 }
 
 .gmaps-route-label {

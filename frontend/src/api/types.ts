@@ -71,12 +71,26 @@ export interface EvacuationRoute {
   geometry: [number, number][]
   steps: { instruction: string; distance_m: number; duration_s: number }[]
   risk_penalty_applied: boolean
+  route_strategy?: string | null
+  weather_forecast_points?: WeatherForecastPoint[]
 }
 
 export interface RiskGridPoint {
   lat: number
   lng: number
   score: number
+  elevation_m?: number
+  rainfall_mm?: number
+  river_discharge?: number
+  hour_offset?: number
+}
+
+export interface WeatherForecastPoint {
+  lat: number
+  lng: number
+  score: number
+  rainfall_mm?: number
+  hour_offset?: number
   elevation_m?: number
 }
 

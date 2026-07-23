@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getRisk, getRiskHistory, getAlerts, getGoogleWeather, isOnline, type GoogleWeatherData, type GoogleForecastHour } from '../api/client'
+import { getRisk, getRiskHistory, getAlerts, getBackendWeather, isOnline } from '../api/client'
+import type { BackendWeatherData } from '../api/client'
 import type { Alert } from '../api/types'
 import { useLocation } from '../hooks/useLocation'
 import { timeAgo } from '../utils/format'
@@ -30,32 +31,26 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
+  // offline state currently only used to control apiError messaging
   const [offline, setOffline] = useState(!isOnline())
   const [usingCachedData, setUsingCachedData] = useState(false)
 
-  const [weatherData, setWeatherData] = useState<GoogleWeatherData | null>(null)
-  const [hourlyForecast, setHourlyForecast] = useState<GoogleForecastHour[]>([])
+  void offline
+  void usingCachedData
 
-  // Track online/offline status
-  useEffect(() => {
-    const goOnline = () => { setOffline(false); setApiError(null); loadData() }
-    const goOffline = () => setOffline(true)
-    window.addEventListener('online', goOnline)
-    window.addEventListener('offline', goOffline)
-    return () => {
-      window.removeEventListener('online', goOnline)
-      window.removeEventListener('offline', goOffline)
-    }
-  }, [])
+
+  const [weatherData, setWeatherData] = useState<BackendWeatherData | null>(null)
+  const [weatherSource, setWeatherSource] = useState<string>('open_meteo')
 
   const loadData = useCallback(async () => {
     try {
       setApiError(null)
       setUsingCachedData(false)
-      const [risk, history, alertList] = await Promise.all([
+      const [risk, history, alertList, weather] = await Promise.all([
         getRisk(lat, lng),
         getRiskHistory(lat, lng),
         getAlerts(lat, lng),
+        getBackendWeather(lat, lng),
       ])
       setRiskLevel(risk.score)
       setRiskLabel(risk.label)
@@ -65,16 +60,8 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
       setDangerZones(alertList.filter((a) => a.severity === 'high' || a.severity === 'critical').length)
       setAlerts(alertList.slice(0, 3))
       setLastUpdate(new Date(risk.computed_at))
-
-      // Fetch WeatherAPI separately so it doesn't block the rest of the application
-      try {
-        const weatherInfo = await getGoogleWeather(lat, lng)
-        setWeatherData(weatherInfo.current)
-        setHourlyForecast(weatherInfo.forecast)
-      } catch (wErr) {
-        console.error('Failed to load Google Weather:', wErr)
-      }
-
+      setWeatherData(weather)
+      setWeatherSource(weather.source)
       setLoading(false)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -87,6 +74,25 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
       setLoading(false)
     }
   }, [lat, lng])
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false)
+      setApiError(null)
+      loadData()
+    }
+    const goOffline = () => setOffline(true)
+
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [loadData])
+
 
   useEffect(() => {
     loadData()
@@ -118,34 +124,13 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
     { label: 'Emergency Contacts', type: 'contacts', screen: 'contacts' },
   ]
 
-  // Fallback mock weather data based on rainfall if API is not loaded
-  const getWeatherCondition = () => {
-    if (weatherData) return weatherData.condition
-    if (rainfallTotal > 10) return 'Rainstorm'
-    if (rainfallTotal > 5) return 'Heavy rain'
-    if (rainfallTotal > 2) return 'Moderate rain'
-    if (rainfallTotal > 0.5) return 'Light rain'
-    return 'Cloudy'
-  }
+  const getWeatherCondition = () => weatherData?.condition ?? 'Loading…'
 
-  const getTemperature = () => {
-    if (weatherData) return weatherData.temp
-    return Math.max(22, 28 - rainfallTotal * 0.5)
-  }
+  const getTemperature = () => weatherData?.temp ?? 0
 
-  const getWeatherIcon = () => {
-    if (weatherData) return weatherData.icon
-    if (rainfallTotal > 5) return '⛈️'
-    if (rainfallTotal > 0.5) return '🌧️'
-    return '☁️'
-  }
+  const getWeatherIcon = () => weatherData?.icon ?? '☁️'
 
-  const forecastList = hourlyForecast.length > 0 ? hourlyForecast : Array.from({ length: 6 }, (_, i) => ({
-    hour: (new Date().getHours() + i) % 24,
-    temp: Math.max(20, getTemperature() - Math.random() * 3),
-    condition: i > 2 ? 'Clear' : getWeatherCondition(),
-    icon: i > 2 ? '☀️' : getWeatherIcon(),
-  }))
+  const forecastList = weatherData?.forecast ?? []
 
 
   return (
@@ -251,23 +236,23 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
       <div className="card weather-card animate-fade-in" style={{ marginBottom: '20px', animationDelay: '0.12s' }}>
         <div className="section-header">
           <span className="section-title">Weather</span>
+          <span className="chip-live">{weatherSource === 'open_meteo' ? 'Open-Meteo' : 'Live'}</span>
         </div>
         <div className="weather-current">
-          <div className="weather-icon-large">{getWeatherIcon()}</div>
+          <div className="weather-icon-large">{loading ? '…' : getWeatherIcon()}</div>
           <div className="weather-info">
-            <div className="weather-temp">{Math.round(getTemperature())}°</div>
-            <div className="weather-condition">{getWeatherCondition()}</div>
+            <div className="weather-temp">{loading ? '—' : Math.round(getTemperature())}°</div>
+            <div className="weather-condition">{loading ? 'Loading…' : getWeatherCondition()}</div>
             <div className="weather-detail">
-              {weatherData 
-                ? `Humidity: ${weatherData.humidity}% | Wind: ${weatherData.windSpeed} km/h`
-                : 'Humidity: 85% | Wind: 12 km/h'
-              }
+              {weatherData
+                ? `Humidity: ${weatherData.humidity}% | Wind: ${weatherData.wind_speed} km/h | Rain: ${weatherData.precipitation}mm`
+                : 'Fetching live weather…'}
             </div>
           </div>
         </div>
         <div className="weather-divider"></div>
         <div className="weather-hourly">
-          {forecastList.map((item, idx) => (
+          {(forecastList.length ? forecastList : Array.from({ length: 6 }, (_, i) => ({ hour: i, temp: 0, icon: '…' }))).map((item, idx) => (
             <div key={idx} className="weather-hour">
               <div className="weather-time">{item.hour.toString().padStart(2, '0')}:00</div>
               <div className="weather-icon">{item.icon}</div>
