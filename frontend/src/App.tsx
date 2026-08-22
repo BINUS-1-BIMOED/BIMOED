@@ -1,14 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { getAlerts, isOnline } from './api/client'
 import { useLocation } from './hooks/useLocation'
 import HomeScreen from './screens/HomeScreen'
-import MapScreen from './screens/MapScreen'
-import AlertScreen from './screens/AlertScreen'
-import ReportScreen from './screens/ReportScreen'
-import ProfileScreen from './screens/ProfileScreen'
 import OnboardingScreen from './screens/OnboardingScreen'
 import SOSModal from './components/SOSModal'
 import './index.css'
+
+// Loaded on first navigation instead of upfront — MapScreen alone pulls in
+// leaflet/react-leaflet, which is the single heaviest chunk in the app.
+const MapScreen = lazy(() => import('./screens/MapScreen'))
+const AlertScreen = lazy(() => import('./screens/AlertScreen'))
+const ReportScreen = lazy(() => import('./screens/ReportScreen'))
+const ProfileScreen = lazy(() => import('./screens/ProfileScreen'))
+
+const ScreenFallback = () => (
+  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="spinner" aria-label="Loading" />
+  </div>
+)
 
 type Screen = 'home' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile'
 type Theme = 'light' | 'dark'
@@ -117,14 +126,22 @@ export default function App() {
   const renderScreen = () => {
     if (isMapScreen) {
       const mode = screen === 'route' ? 'route' : screen === 'safe' ? 'safe' : 'risk'
-      return <MapScreen onNavigate={navigate} initialMode={mode} />
+      return (
+        <Suspense fallback={<ScreenFallback />}>
+          <MapScreen onNavigate={navigate} initialMode={mode} />
+        </Suspense>
+      )
     }
     switch (screen) {
       case 'home': return <HomeScreen onNavigate={navigate}/>
-      case 'alert': return <AlertScreen onNavigate={navigate}/>
-      case 'report': return <ReportScreen onNavigate={navigate}/>
+      case 'alert': return <Suspense fallback={<ScreenFallback />}><AlertScreen onNavigate={navigate}/></Suspense>
+      case 'report': return <Suspense fallback={<ScreenFallback />}><ReportScreen onNavigate={navigate}/></Suspense>
       case 'profile':
-      case 'contacts': return <ProfileScreen onNavigate={navigate} theme={theme} onThemeChange={setTheme}/>
+      case 'contacts': return (
+        <Suspense fallback={<ScreenFallback />}>
+          <ProfileScreen onNavigate={navigate} theme={theme} onThemeChange={setTheme}/>
+        </Suspense>
+      )
       default: return <HomeScreen onNavigate={navigate}/>
     }
   }

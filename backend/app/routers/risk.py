@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
@@ -36,8 +37,10 @@ async def get_risk(
         open_meteo = cached
         bmkg = weather_service._bmkg_fallback(lat, lng)
     else:
-        open_meteo = await weather_service.fetch_open_meteo(lat, lng)
-        bmkg = await weather_service.fetch_bmkg(lat, lng)
+        open_meteo, bmkg = await asyncio.gather(
+            weather_service.fetch_open_meteo(lat, lng),
+            weather_service.fetch_bmkg(lat, lng),
+        )
         weather_service.cache_weather(db, lat, lng, "open_meteo", open_meteo)
         weather_service.cache_weather(db, lat, lng, "bmkg", bmkg)
 
@@ -53,8 +56,10 @@ async def get_risk_history(
     hours: int = Query(12, ge=1, le=48),
     db: Session = Depends(get_db),
 ):
-    open_meteo = await weather_service.fetch_open_meteo(lat, lng)
-    bmkg = await weather_service.fetch_bmkg(lat, lng)
+    open_meteo, bmkg = await asyncio.gather(
+        weather_service.fetch_open_meteo(lat, lng),
+        weather_service.fetch_bmkg(lat, lng),
+    )
     metrics = weather_service.extract_metrics(open_meteo, bmkg)
     points = [
         RiskHistoryPoint(hour=p["hour"], rainfall_mm=p["rainfall_mm"])

@@ -5,7 +5,9 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from config import settings
 from database import Base, SessionLocal, engine
@@ -18,11 +20,33 @@ logger = logging.getLogger(__name__)
 
 scheduler = BackgroundScheduler()
 
+# Composite indexes for models whose rows grow over time and are filtered by
+# location/time on every request. Base.metadata.create_all() only creates
+# indexes for tables it creates from scratch, so already-deployed databases
+# need this idempotent backfill too.
+_INDEX_STATEMENTS = [
+    "CREATE INDEX IF NOT EXISTS ix_escood_reports_lat_lng ON escood_reports (lat, lng)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_reports_created_at ON escood_reports (created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_alerts_lat_lng ON escood_alerts (lat, lng)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_alerts_created_at ON escood_alerts (created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_sos_lat_lng ON escood_sos (lat, lng)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_sos_status ON escood_sos (status)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_flood_notifications_lat_lng ON escood_flood_notifications (lat, lng)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_flood_notifications_expires_at ON escood_flood_notifications (expires_at)",
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            for stmt in _INDEX_STATEMENTS:
+                try:
+                    conn.execute(text(stmt))
+                    conn.commit()
+                except Exception as exc:
+                    logger.warning("Skipping index statement (%s): %s", stmt, exc)
         db = SessionLocal()
         try:
             seed_database(db)
@@ -55,6 +79,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.add_middleware(
     CORSMiddleware,

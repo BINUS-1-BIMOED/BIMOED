@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -11,10 +11,13 @@ router = APIRouter(prefix="/safe-zones", tags=["safe-zones"])
 
 @router.get("", response_model=list[SafeZoneResponse])
 def list_safe_zones(
+    response: Response,
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
     db: Session = Depends(get_db),
 ):
+    # Shelter locations change rarely; let the browser/CDN reuse the response for a bit.
+    response.headers["Cache-Control"] = "public, max-age=300"
     zones = db.query(SafeZone).all()
     results = []
     for z in zones:

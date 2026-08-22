@@ -1,11 +1,15 @@
 from datetime import datetime
-from sqlalchemy import DateTime, Float, String, Text, func
+from sqlalchemy import DateTime, Float, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
 
 
 class FloodNotification(Base):
     __tablename__ = "escood_flood_notifications"
+    __table_args__ = (
+        Index("ix_escood_flood_notifications_lat_lng", "lat", "lng"),
+        Index("ix_escood_flood_notifications_expires_at", "expires_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     alert_type: Mapped[str] = mapped_column(String(32), nullable=False)  # "flood", "warning", "watch", "advisory"

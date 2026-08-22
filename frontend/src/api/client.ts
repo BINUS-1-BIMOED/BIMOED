@@ -28,13 +28,21 @@ export function isOnline(): boolean {
   return _isOnline
 }
 
+// Cap how long we wait on a slow/unresponsive backend before giving up and
+// falling back to the last known-good data — keeps screens from hanging.
+const REQUEST_TIMEOUT_MS = 10_000
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const cacheKey = `api:${init?.method || 'GET'}:${path}`
   const isMutation = init?.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(init.method)
 
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
   try {
     const res = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
       headers: { Accept: 'application/json', ...init?.headers },
+      signal: controller.signal,
       ...init,
     })
     if (!res.ok) {
@@ -50,15 +58,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
     return data
   } catch (err) {
-    // If offline or network error, try to return cached data
-    if (!_isOnline || err instanceof TypeError) {
+    // Any failure to fetch fresh data — offline, timeout, network error, or a
+    // backend error response — falls back to the last known-good response
+    // instead of leaving the screen stuck loading or empty. Mutations
+    // (submitting a report/SOS, etc.) always surface the real error instead,
+    // since there's no sane "last known data" to fall back to for those.
+    if (!isMutation) {
       const cached = await getCache<T>(cacheKey)
       if (cached) {
-        console.log(`[Offline] Returning cached data for ${path}${cached.fresh ? ' (fresh)' : ' (stale)'}`)
+        console.log(`[Fallback] Returning last known data for ${path}${cached.fresh ? ' (fresh)' : ' (stale)'}`)
         return cached.data
       }
     }
     throw err
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, func
+from sqlalchemy import DateTime, Float, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -8,6 +8,10 @@ from database import Base
 
 class SOS(Base):
     __tablename__ = "escood_sos"
+    __table_args__ = (
+        Index("ix_escood_sos_lat_lng", "lat", "lng"),
+        Index("ix_escood_sos_status", "status"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     lat: Mapped[float] = mapped_column(Float, nullable=False)

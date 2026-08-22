@@ -6,7 +6,7 @@ from ml.report_validator import ReportValidator
 from models.report import Report
 from schemas import ReportCreate, ReportResponse, ReportValidationResponse
 from services.storage import StorageService
-from utils.geo import haversine_km
+from utils.geo import bounding_box, haversine_km
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 validator = ReportValidator()
@@ -73,7 +73,13 @@ def nearby_reports(
     radius_km: float = 5,
     db: Session = Depends(get_db),
 ):
-    reports = db.query(Report).order_by(Report.created_at.desc()).all()
+    lat_min, lat_max, lng_min, lng_max = bounding_box(lat, lng, radius_km)
+    reports = (
+        db.query(Report)
+        .filter(Report.lat.between(lat_min, lat_max), Report.lng.between(lng_min, lng_max))
+        .order_by(Report.created_at.desc())
+        .all()
+    )
     return [r for r in reports if haversine_km(lat, lng, r.lat, r.lng) <= radius_km]
 
 

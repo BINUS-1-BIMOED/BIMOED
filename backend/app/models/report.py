@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, func
+from sqlalchemy import DateTime, Float, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -8,6 +8,10 @@ from database import Base
 
 class Report(Base):
     __tablename__ = "escood_reports"
+    __table_args__ = (
+        Index("ix_escood_reports_lat_lng", "lat", "lng"),
+        Index("ix_escood_reports_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

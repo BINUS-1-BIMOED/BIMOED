@@ -8,7 +8,7 @@ from models.alert import Alert
 from models.sos import SOS
 from schemas import SOSCreate, SOSResponse
 from services.weather import WeatherService
-from utils.geo import haversine_km
+from utils.geo import bounding_box, haversine_km
 
 router = APIRouter(prefix="/sos", tags=["sos"])
 weather_service = WeatherService()
@@ -24,9 +24,14 @@ def list_sos_alerts(
     db: Session = Depends(get_db),
 ):
     """Get active SOS alerts near location."""
+    lat_min, lat_max, lng_min, lng_max = bounding_box(lat, lng, radius_km)
     sos_alerts = (
         db.query(SOS)
-        .filter(SOS.status == "active")
+        .filter(
+            SOS.status == "active",
+            SOS.lat.between(lat_min, lat_max),
+            SOS.lng.between(lng_min, lng_max),
+        )
         .order_by(SOS.created_at.desc())
         .all()
     )
