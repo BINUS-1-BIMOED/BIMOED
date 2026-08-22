@@ -32,18 +32,27 @@ export function isOnline(): boolean {
 // falling back to the last known-good data — keeps screens from hanging.
 const REQUEST_TIMEOUT_MS = 10_000
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const cacheKey = `api:${init?.method || 'GET'}:${path}`
-  const isMutation = init?.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(init.method)
+interface RequestOptions extends RequestInit {
+  // Some POST endpoints (e.g. route computation) are reads in spirit — they don't
+  // mutate server state, so their last successful result is safe to cache and to
+  // fall back to. Opt them in explicitly rather than caching every POST by default.
+  cacheable?: boolean
+}
+
+async function request<T>(path: string, init?: RequestOptions): Promise<T> {
+  const { cacheable, ...fetchInit } = init ?? {}
+  const bodyKey = typeof fetchInit.body === 'string' ? `:${fetchInit.body}` : ''
+  const cacheKey = `api:${fetchInit.method || 'GET'}:${path}${bodyKey}`
+  const isMutation = !cacheable && !!fetchInit.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(fetchInit.method)
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
     const res = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
-      headers: { Accept: 'application/json', ...init?.headers },
+      headers: { Accept: 'application/json', ...fetchInit.headers },
       signal: controller.signal,
-      ...init,
+      ...fetchInit,
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => res.statusText)
@@ -160,6 +169,7 @@ export function getEvacuationRoute(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    cacheable: true,
   })
 }
 

@@ -894,6 +894,14 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
         </div>
       )}
 
+      {/* ---- Stale Route Indicator: last known route shown while retrying in the background ---- */}
+      {navigation.stale && !navigation.rerouting && (
+        <div className="gmaps-rerouting-indicator animate-fade-in">
+          <div className="gmaps-rerouting-spinner" />
+          <span>Showing last known route — reconnecting…</span>
+        </div>
+      )}
+
       {/* ---- Turn-by-Turn Navigation Banner (active navigation) ---- */}
       {isNavigating && !navigation.deviationDetected && (
         <div className="gmaps-navigation-banner animate-fade-in">

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getEvacuationRoute } from '../api/client'
 import type { EvacuationRoute, SafeZone } from '../api/types'
 
@@ -16,6 +16,9 @@ export interface NavigationState {
   nextInstructionDistance: number
   deviationDetected: boolean
   rerouting: boolean
+  // True while we're showing a previously-fetched route because the latest
+  // request failed — background retries keep trying until fresh data lands.
+  stale: boolean
 }
 
 export interface UseNavigationReturn extends NavigationState {
@@ -26,6 +29,7 @@ export interface UseNavigationReturn extends NavigationState {
 }
 
 const REROUTE_DEVIATION_KM = 0.15 // 150m deviation triggers reroute
+const ROUTE_RETRY_MS = 12_000 // background retry cadence while a route fetch is failing (> the 10s request timeout, so retries don't overlap)
 
 
 /**
@@ -115,47 +119,91 @@ export function useNavigation(): UseNavigationReturn {
     nextInstructionDistance: 0,
     deviationDetected: false,
     rerouting: false,
+    stale: false,
   })
 
   const routeRef = useRef<EvacuationRoute | null>(null)
   const activeRef = useRef(false)
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null)
+  const retryTimerRef = useRef<number | null>(null)
 
   const updateNavigationState = useCallback((partial: Partial<NavigationState>) => {
     setState(prev => ({ ...prev, ...partial }))
   }, [])
 
-  const startNavigation = useCallback(async (originLat: number, originLng: number, dest?: SafeZone) => {
-    updateNavigationState({ loading: true, active: true })
-    try {
-      const result = await getEvacuationRoute(originLat, originLng, dest?.lat, dest?.lng)
-      routeRef.current = result
-      activeRef.current = true
-      lastPositionRef.current = { lat: originLat, lng: originLng }
-
-      const totalDist = result.distance_km
-      const totalDur = result.duration_min
-      const firstInstruction = result.steps?.[0]?.instruction ?? 'Follow route to safe zone'
-      const firstStepDist = result.steps?.[0]?.distance_m ?? totalDist * 1000
-
-      updateNavigationState({
-        route: result,
-        loading: false,
-        currentStepIndex: 0,
-        progressPercent: 0,
-        distanceRemainingKm: totalDist,
-        durationRemainingMin: totalDur,
-        nextInstruction: firstInstruction,
-        nextInstructionDistance: firstStepDist,
-        deviationDetected: false,
-        rerouting: false,
-      })
-    } catch {
-      updateNavigationState({ loading: false, active: false, route: null })
+  const clearRetry = useCallback(() => {
+    if (retryTimerRef.current !== null) {
+      window.clearInterval(retryTimerRef.current)
+      retryTimerRef.current = null
     }
+  }, [])
+
+  // Applies a freshly-fetched route as the current navigation state.
+  const applyRoute = useCallback((result: EvacuationRoute, originLat: number, originLng: number) => {
+    routeRef.current = result
+    activeRef.current = true
+    lastPositionRef.current = { lat: originLat, lng: originLng }
+
+    const totalDist = result.distance_km
+    const totalDur = result.duration_min
+    const firstInstruction = result.steps?.[0]?.instruction ?? 'Follow route to safe zone'
+    const firstStepDist = result.steps?.[0]?.distance_m ?? totalDist * 1000
+
+    updateNavigationState({
+      route: result,
+      active: true,
+      loading: false,
+      stale: false,
+      currentStepIndex: 0,
+      progressPercent: 0,
+      distanceRemainingKm: totalDist,
+      durationRemainingMin: totalDur,
+      nextInstruction: firstInstruction,
+      nextInstructionDistance: firstStepDist,
+      deviationDetected: false,
+      rerouting: false,
+    })
   }, [updateNavigationState])
 
+  // Keeps retrying a failed route fetch in the background — at ROUTE_RETRY_MS
+  // cadence — until it succeeds, without disturbing whatever route is already
+  // being shown in the meantime.
+  const scheduleRouteRetry = useCallback((fetchRoute: () => Promise<EvacuationRoute>, originLat: number, originLng: number) => {
+    clearRetry()
+    retryTimerRef.current = window.setInterval(() => {
+      fetchRoute()
+        .then((result) => {
+          clearRetry()
+          applyRoute(result, originLat, originLng)
+        })
+        .catch(() => {
+          // Still failing — keep showing the last known route and try again next tick.
+        })
+    }, ROUTE_RETRY_MS)
+  }, [applyRoute, clearRetry])
+
+  const startNavigation = useCallback(async (originLat: number, originLng: number, dest?: SafeZone) => {
+    clearRetry()
+    const hadPreviousRoute = !!routeRef.current
+    updateNavigationState({ loading: !hadPreviousRoute, active: true, stale: hadPreviousRoute })
+    const fetchRoute = () => getEvacuationRoute(originLat, originLng, dest?.lat, dest?.lng)
+    try {
+      const result = await fetchRoute()
+      applyRoute(result, originLat, originLng)
+    } catch {
+      // Keep showing the previous route (if any) instead of clearing it, and
+      // keep trying in the background until a fresh route comes through.
+      updateNavigationState({
+        loading: false,
+        active: hadPreviousRoute,
+        stale: hadPreviousRoute,
+      })
+      scheduleRouteRetry(fetchRoute, originLat, originLng)
+    }
+  }, [applyRoute, clearRetry, scheduleRouteRetry, updateNavigationState])
+
   const stopNavigation = useCallback(() => {
+    clearRetry()
     routeRef.current = null
     activeRef.current = false
     lastPositionRef.current = null
@@ -171,8 +219,12 @@ export function useNavigation(): UseNavigationReturn {
       nextInstructionDistance: 0,
       deviationDetected: false,
       rerouting: false,
+      stale: false,
     })
-  }, [updateNavigationState])
+  }, [clearRetry, updateNavigationState])
+
+  // Stop any pending background retry if the component unmounts mid-retry.
+  useEffect(() => clearRetry, [clearRetry])
 
   const updatePosition = useCallback((lat: number, lng: number, _heading?: number | null) => {
     const route = routeRef.current
@@ -232,29 +284,19 @@ export function useNavigation(): UseNavigationReturn {
     const route = routeRef.current
     if (!route) return
 
+    clearRetry()
     updateNavigationState({ rerouting: true, loading: true })
+    const fetchRoute = () => getEvacuationRoute(lat, lng, route.destination.lat, route.destination.lng)
     try {
-      const result = await getEvacuationRoute(lat, lng, route.destination.lat, route.destination.lng)
-      routeRef.current = result
-      activeRef.current = true
-      lastPositionRef.current = { lat, lng }
-
-      updateNavigationState({
-        route: result,
-        loading: false,
-        rerouting: false,
-        deviationDetected: false,
-        currentStepIndex: 0,
-        progressPercent: 0,
-        distanceRemainingKm: result.distance_km,
-        durationRemainingMin: result.duration_min,
-        nextInstruction: result.steps?.[0]?.instruction ?? 'Follow route to safe zone',
-        nextInstructionDistance: result.steps?.[0]?.distance_m ?? result.distance_km * 1000,
-      })
+      const result = await fetchRoute()
+      applyRoute(result, lat, lng)
     } catch {
-      updateNavigationState({ rerouting: false, loading: false })
+      // Keep following the route we already have — mark it stale and keep
+      // retrying in the background instead of leaving the user stuck.
+      updateNavigationState({ rerouting: false, loading: false, stale: true })
+      scheduleRouteRetry(fetchRoute, lat, lng)
     }
-  }, [updateNavigationState])
+  }, [applyRoute, clearRetry, scheduleRouteRetry, updateNavigationState])
 
   return {
     ...state,
