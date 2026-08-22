@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +14,12 @@ from utils.geo import bounding_box, haversine_km
 
 router = APIRouter(prefix="/sos", tags=["sos"])
 weather_service = WeatherService()
+logger = logging.getLogger(__name__)
+
+# Hard cap on how long the risk-gate check may take. Weather/elevation
+# providers are external and occasionally slow; an emergency SOS submission
+# must never be stuck waiting on them.
+RISK_CHECK_TIMEOUT_S = 5.0
 
 COOLDOWN_MINUTES = 5
 
@@ -58,10 +66,22 @@ async def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
                 detail=f"SOS cooldown active. Please wait {COOLDOWN_MINUTES} minutes before submitting another alert.",
             )
 
-    risk_points = await weather_service.build_risk_grid(db, payload.lat, payload.lng)
-    current_points = [p for p in risk_points if p.get("hour_offset", 0) == 0]
-    max_risk = max((p["score"] for p in current_points), default=0)
-    max_rain = max((p.get("rainfall_mm", 0) for p in current_points), default=0)
+    # SOS only needs a coarse "is it risky right now near here" gate, not the full
+    # map-resolution grid — a smaller sample and a single hour_offset skip most of
+    # the (network-bound) elevation lookups, cutting submission latency well below
+    # the full grid used by the map view. And since weather/elevation providers are
+    # external, the whole check is time-boxed: if they're slow or down, we let the
+    # SOS through rather than stall someone in danger waiting on a risk score.
+    try:
+        risk_points = await asyncio.wait_for(
+            weather_service.build_risk_grid(db, payload.lat, payload.lng, count=8, hour_offsets=(0,)),
+            timeout=RISK_CHECK_TIMEOUT_S,
+        )
+        max_risk = max((p["score"] for p in risk_points), default=0)
+        max_rain = max((p.get("rainfall_mm", 0) for p in risk_points), default=0)
+    except asyncio.TimeoutError:
+        logger.warning("SOS risk check timed out at (%s, %s) — allowing submission through", payload.lat, payload.lng)
+        max_risk, max_rain = 100.0, 0.0  # skip the gate below; don't block an emergency on a slow API
 
     if max_risk < 35 and max_rain < 1.0:
         raise HTTPException(

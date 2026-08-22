@@ -205,8 +205,23 @@ class WeatherService:
             "source": "open_meteo",
         }
 
-    async def build_risk_grid(self, db: Session, origin_lat: float, origin_lng: float) -> list[dict]:
-        """Build flood/rain risk points from real Open-Meteo precipitation + elevation."""
+    async def build_risk_grid(
+        self,
+        db: Session,
+        origin_lat: float,
+        origin_lng: float,
+        *,
+        radius_km: float = 3.0,
+        count: int = 24,
+        hour_offsets: tuple[int, ...] = (0, 2, 4),
+    ) -> list[dict]:
+        """Build flood/rain risk points from real Open-Meteo precipitation + elevation.
+
+        radius_km/count/hour_offsets default to the full grid used for the map view.
+        Callers that only need a coarse, single-moment risk read (e.g. gating an SOS
+        submission) can pass a smaller count and hour_offsets=(0,) to skip most of the
+        elevation lookups — those are the expensive part, one blocking HTTP call each.
+        """
         import math
 
         cached = self.get_cached(db, origin_lat, origin_lng)
@@ -220,14 +235,14 @@ class WeatherService:
         precip = hourly.get("precipitation") or hourly.get("rain") or []
         discharge = float(open_meteo.get("river_discharge", 0) or 0)
 
-        sample_pts = self._sample_points(origin_lat, origin_lng, radius_km=3.0, count=24)
+        sample_pts = self._sample_points(origin_lat, origin_lng, radius_km=radius_km, count=count)
         elevations = await asyncio.gather(*(asyncio.to_thread(estimate_elevation, lat, lng) for lat, lng in sample_pts))
         grid: list[dict] = []
         for (lat, lng), elev in zip(sample_pts, elevations):
             dist_km = math.sqrt((lat - origin_lat) ** 2 + (lng - origin_lng) ** 2) * 111
             # Low elevation + distance from center increases localized runoff risk
             runoff_factor = 1.0 + max(0.0, (12.0 - elev) / 25.0) + dist_km * 0.04
-            for hour_offset in (0, 2, 4):
+            for hour_offset in hour_offsets:
                 hour_idx = min(len(precip) - 1, hour_offset) if precip else 0
                 base_rain = float(precip[hour_idx] or 0) if precip else 0.0
                 local_rain = base_rain * runoff_factor

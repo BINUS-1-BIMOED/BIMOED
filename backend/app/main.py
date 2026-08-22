@@ -31,6 +31,7 @@ _INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS ix_escood_alerts_created_at ON escood_alerts (created_at)",
     "CREATE INDEX IF NOT EXISTS ix_escood_sos_lat_lng ON escood_sos (lat, lng)",
     "CREATE INDEX IF NOT EXISTS ix_escood_sos_status ON escood_sos (status)",
+    "CREATE INDEX IF NOT EXISTS ix_escood_sos_user_status_created ON escood_sos (user_id, status, created_at)",
     "CREATE INDEX IF NOT EXISTS ix_escood_flood_notifications_lat_lng ON escood_flood_notifications (lat, lng)",
     "CREATE INDEX IF NOT EXISTS ix_escood_flood_notifications_expires_at ON escood_flood_notifications (expires_at)",
 ]

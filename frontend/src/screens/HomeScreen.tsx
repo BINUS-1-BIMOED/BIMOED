@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getRisk, getRiskHistory, getAlerts, getBackendWeather, isOnline } from '../api/client'
+import { getRisk, getRiskHistory, getAlerts, getBackendWeather, peekCached, isOnline } from '../api/client'
 import type { BackendWeatherData } from '../api/client'
-import type { Alert } from '../api/types'
+import type { Alert, RiskData, RiskHistoryPoint } from '../api/types'
 import { useLocation } from '../hooks/useLocation'
 import { timeAgo } from '../utils/format'
 
@@ -63,13 +63,10 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
       setWeatherData(weather)
       setWeatherSource(weather.source)
       setLoading(false)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
+    } catch {
       if (!isOnline()) {
         setUsingCachedData(true)
         setApiError('You are offline — showing last available data')
-      } else {
-        setApiError(`Backend unavailable — run: cd backend/app && bash start.sh (${msg})`)
       }
       setLoading(false)
     }
@@ -93,6 +90,43 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
     }
   }, [loadData])
 
+
+  // Paint whatever was last saved to disk the instant the screen mounts, so the
+  // user sees real numbers immediately instead of "—" placeholders while the
+  // live fetch (which can take up to REQUEST_TIMEOUT_MS if the API is down) is
+  // still in flight. loadData() below still runs right after and overwrites
+  // this with fresh data whenever it succeeds.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const [risk, history, alertList, weather] = await Promise.all([
+        peekCached<RiskData>(`/risk?lat=${lat}&lng=${lng}`),
+        peekCached<{ points: RiskHistoryPoint[] }>(`/risk/history?lat=${lat}&lng=${lng}&hours=12`),
+        peekCached<Alert[]>(`/alerts?lat=${lat}&lng=${lng}&radius_km=15`),
+        peekCached<BackendWeatherData>(`/risk/weather?lat=${lat}&lng=${lng}`),
+      ])
+      if (cancelled) return
+      if (risk) {
+        setRiskLevel(risk.score)
+        setRiskLabel(risk.label)
+        setRainfallTotal(risk.rainfall_mm)
+        setWaterLevel(risk.water_level_m)
+        setLastUpdate(new Date(risk.computed_at))
+        setLoading(false)
+        setUsingCachedData(true)
+      }
+      if (history) setRainfallData(history.points.map((p) => p.rainfall_mm))
+      if (alertList) {
+        setDangerZones(alertList.filter((a) => a.severity === 'high' || a.severity === 'critical').length)
+        setAlerts(alertList.slice(0, 3))
+      }
+      if (weather) {
+        setWeatherData(weather)
+        setWeatherSource(weather.source)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [lat, lng])
 
   useEffect(() => {
     loadData()

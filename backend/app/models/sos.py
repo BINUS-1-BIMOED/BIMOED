@@ -11,6 +11,8 @@ class SOS(Base):
     __table_args__ = (
         Index("ix_escood_sos_lat_lng", "lat", "lng"),
         Index("ix_escood_sos_status", "status"),
+        # Covers the cooldown check on every SOS submission (user_id + status + recent created_at).
+        Index("ix_escood_sos_user_status_created", "user_id", "status", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

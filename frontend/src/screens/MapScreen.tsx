@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, Polygon, Polyline, TileLayer, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getAlerts, getNearbyReports, getSyncBundle, isOnline } from '../api/client'
+import { getAlerts, getNearbyReports, getSyncBundle, peekCached, isOnline } from '../api/client'
 
-import type { Alert, EvacuationRoute, ReportResponse, RiskGridPoint, SafeZone } from '../api/types'
+import type { Alert, EvacuationRoute, ReportResponse, RiskGridPoint, SafeZone, SyncBundle } from '../api/types'
 import { MapController, MapResizeFix } from '../components/MapController'
 import { useLocation } from '../hooks/useLocation'
 import { useNavigation } from '../hooks/useNavigation'
@@ -350,6 +350,27 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
         }
       })
   }, [])
+
+  // Paint the last saved risk grid/safe zones/alerts/reports immediately on
+  // mount instead of an empty map while the live fetch is still in flight.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const [bundle, alerts, reports] = await Promise.all([
+        peekCached<SyncBundle>(`/sync/bundle?region=medan&lat=${lat}&lng=${lng}`),
+        peekCached<Alert[]>(`/alerts?lat=${lat}&lng=${lng}&radius_km=15`),
+        peekCached<ReportResponse[]>(`/reports/nearby?lat=${lat}&lng=${lng}&radius_km=8`),
+      ])
+      if (cancelled) return
+      if (bundle) {
+        setRiskGrid(bundle.risk_grid)
+        setSafeZones(bundle.safe_zones)
+      }
+      if (alerts) setLiveAlerts(alerts)
+      if (reports) setLiveReports(reports.filter((r) => r.validation_status !== 'flagged'))
+    })()
+    return () => { cancelled = true }
+  }, [lat, lng])
 
   // Refresh whenever the user's position changes meaningfully.
   useEffect(() => {

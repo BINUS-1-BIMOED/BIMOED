@@ -85,6 +85,14 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   }
 }
 
+// Reads whatever was last persisted for a GET path, without touching the
+// network — lets a screen paint last-known data the instant it mounts,
+// instead of a blank/placeholder state while the real fetch is in flight.
+export async function peekCached<T>(path: string): Promise<T | null> {
+  const cached = await getCache<T>(`api:GET:${path}`)
+  return cached ? cached.data : null
+}
+
 export function getRisk(lat: number, lng: number): Promise<RiskData> {
   return request(`/risk?lat=${lat}&lng=${lng}`)
 }
