@@ -10,9 +10,15 @@ services:
         sync: false
       - key: SUPABASE_URL
         sync: false
+      - key: SUPABASE_KEY
+        sync: false
       - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: BMKG_API_KEY
         sync: false
       - key: ORS_API_KEY
         sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
       - key: CORS_ORIGINS
-        value: https://your-frontend.onrender.com
+        value: https://bimoed-frontend.vercel.app,https://escood.vercel.app
