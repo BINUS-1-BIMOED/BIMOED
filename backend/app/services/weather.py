@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy.orm import Session
@@ -12,6 +13,8 @@ from services.geospatial import estimate_elevation
 
 logger = logging.getLogger(__name__)
 
+JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
+
 
 class WeatherService:
     async def fetch_open_meteo(self, lat: float, lng: float) -> dict:
@@ -20,7 +23,9 @@ class WeatherService:
             "longitude": lng,
             "current": "precipitation,rain,temperature_2m,relative_humidity_2m,wind_speed_10m",
             "hourly": "precipitation,rain,temperature_2m",
-            "forecast_days": 1,
+            # 2 days so the "next 6 hours" forecast strip has data to draw from
+            # even late in the day (e.g. 22:00 needs hours 22-23 today + 0-3 tomorrow).
+            "forecast_days": 2,
             "timezone": "Asia/Jakarta",
         }
         try:
@@ -174,17 +179,24 @@ class WeatherService:
         wind_speed = float(current.get("wind_speed_10m") or 10.0)
         condition, icon = self.condition_from_rainfall(current_rain)
 
+        # `times`/`precip` are a calendar-day-aligned hourly series starting at local
+        # midnight (index == hour of day), not "starting from now" — so the current
+        # hour's entry lives at index `now_hour`, not index 0. The offline fallback
+        # response has no "time" array and is already relative to now (index 0 ==
+        # now), so it's left alone.
+        now_hour = datetime.now(JAKARTA_TZ).hour
+        start_idx = now_hour if times else 0
+        start_idx = min(start_idx, max(0, len(precip) - 1))
+
         forecast = []
-        for i in range(min(6, len(precip))):
+        for offset in range(6):
+            i = start_idx + offset
+            if i >= len(precip):
+                break
             rain_i = float(precip[i] or 0)
-            hour_label = i
-            if i < len(times):
-                try:
-                    hour_label = datetime.fromisoformat(times[i].replace("Z", "+00:00")).hour
-                except ValueError:
-                    hour_label = (datetime.now().hour + i) % 24
+            hour_label = (now_hour + offset) % 24
             cond_i, icon_i = self.condition_from_rainfall(rain_i)
-            temp_i = float(temps[i]) if i < len(temps) and temps[i] is not None else base_temp - i * 0.3
+            temp_i = float(temps[i]) if i < len(temps) and temps[i] is not None else base_temp - offset * 0.3
             forecast.append({
                 "hour": hour_label,
                 "temp": round(temp_i, 1),
