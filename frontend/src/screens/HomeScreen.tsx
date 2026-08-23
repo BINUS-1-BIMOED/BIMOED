@@ -350,6 +350,22 @@ export default function HomeScreen({ onNavigate }: HomeScreenProps) {
           ))}
         </div>
       </div>
+
+      <div
+        className="card card-interactive animate-fade-in"
+        style={{ animationDelay: '0.25s' }}
+        onClick={() => onNavigate('donation')}
+      >
+        <div className="section-header">
+          <span className="section-title">Open Donation</span>
+          <span className="chip-live">Rp 12.450.000</span>
+        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '14px' }}>
+          Support community action to reduce flood risk. Contributions help fund drainage and
+          gutter cleaning in flood-prone areas.
+        </p>
+        <button className="btn-primary" onClick={() => onNavigate('donation')}>Donate Now</button>
+      </div>
     </div>
   )
 }

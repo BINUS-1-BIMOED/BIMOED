@@ -12,6 +12,7 @@ const MapScreen = lazy(() => import('./screens/MapScreen'))
 const AlertScreen = lazy(() => import('./screens/AlertScreen'))
 const ReportScreen = lazy(() => import('./screens/ReportScreen'))
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen'))
+const DonationScreen = lazy(() => import('./screens/DonationScreen'))
 
 const ScreenFallback = () => (
   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -19,7 +20,11 @@ const ScreenFallback = () => (
   </div>
 )
 
-type Screen = 'home' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile'
+type Screen = 'home' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile' | 'donation'
+
+// Only 'donation' currently has a real URL — everything else stays purely
+// in-memory state, matching how the app already worked.
+const screenForPath = (): Screen => (window.location.pathname === '/donation' ? 'donation' : 'home')
 type Theme = 'light' | 'dark'
 
 const NAV_ITEMS = [
@@ -81,7 +86,7 @@ const NAV_ITEMS = [
 export default function App() {
   const { lat, lng } = useLocation()
   const [onboarded, setOnboarded] = useState(false)
-  const [screen, setScreen] = useState<Screen>('home')
+  const [screen, setScreen] = useState<Screen>(screenForPath)
   const [alertBadge, setAlertBadge] = useState(0)
   const [sosModalOpen, setSosModalOpen] = useState(false)
   const [appOffline, setAppOffline] = useState(!isOnline())
@@ -111,10 +116,23 @@ export default function App() {
       .catch(() => setAlertBadge(0))
   }, [lat, lng])
 
+  // Keeps the browser URL/back-button in sync for the one screen that has a
+  // real route ('/donation'); every other screen keeps working exactly as
+  // before (in-memory only, URL stays '/').
+  useEffect(() => {
+    const onPopState = () => setScreen(screenForPath())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const navigate = (s: string) => {
-    const valid: Screen[] = ['home', 'map', 'alert', 'report', 'safe', 'route', 'contacts', 'profile']
+    const valid: Screen[] = ['home', 'map', 'alert', 'report', 'safe', 'route', 'contacts', 'profile', 'donation']
     if (valid.includes(s as Screen)) {
       setScreen(s as Screen)
+      const path = s === 'donation' ? '/donation' : '/'
+      if (window.location.pathname !== path) {
+        window.history.pushState(null, '', path)
+      }
     }
   }
 
@@ -142,6 +160,7 @@ export default function App() {
           <ProfileScreen onNavigate={navigate} theme={theme} onThemeChange={setTheme}/>
         </Suspense>
       )
+      case 'donation': return <Suspense fallback={<ScreenFallback />}><DonationScreen onNavigate={navigate}/></Suspense>
       default: return <HomeScreen onNavigate={navigate}/>
     }
   }
