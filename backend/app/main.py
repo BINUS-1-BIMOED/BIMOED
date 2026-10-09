@@ -12,7 +12,7 @@ from sqlalchemy import text
 from config import settings
 from database import Base, SessionLocal, engine
 from jobs.scheduler import run_scheduled_refresh
-from routers import alerts, health, reports, risk, routes, safe_zones, sync, sos, community, flood_alerts, admin
+from routers import alerts, config, disasters, health, reports, risk, routes, safe_zones, sync, sos, community, flood_alerts, admin
 from seed import seed_database
 
 logging.basicConfig(level=logging.INFO)
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("ESCOOD backend started — scheduler every %s min", settings.data_refresh_minutes)
+    logger.info("ESSTER backend started — scheduler every %s min", settings.data_refresh_minutes)
 
     asyncio.create_task(run_scheduled_refresh())
 
@@ -75,8 +75,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ESCOOD API",
-    description="AI-driven flood prediction, community validation, and evacuation guidance",
+    title="ESSTER API",
+    description="Global disaster tracker with AI-driven flood prediction, community validation, and evacuation guidance",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -93,6 +93,8 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(config.router, prefix=settings.api_prefix)
+app.include_router(disasters.router, prefix=settings.api_prefix)
 app.include_router(risk.router, prefix=settings.api_prefix)
 app.include_router(alerts.router, prefix=settings.api_prefix)
 app.include_router(reports.router, prefix=settings.api_prefix)

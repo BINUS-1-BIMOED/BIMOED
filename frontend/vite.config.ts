@@ -17,9 +17,9 @@ export default defineConfig(({ mode }) => {
       babel({ presets: [reactCompilerPreset()] }),
       VitePWA({
         manifest: {
-          name: 'BIMOED - Flood Early Warning System',
-          short_name: 'BIMOED',
-          description: 'AI-driven flood prediction with community validation',
+          name: 'ESSTER - Global Disaster Tracker',
+          short_name: 'ESSTER',
+          description: 'Global disaster tracker with AI-driven flood prediction and community validation',
           theme_color: '#4F8EF7',
           background_color: '#080A0F',
           display: 'standalone',

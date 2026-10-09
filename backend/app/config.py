@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     ors_api_key: str = ""
     google_maps_api_key: str = ""
 
+    # Shared secret for the /admin/* router (analytics, data export, cleanup — none of
+    # it is called by the app itself). Required as an X-Admin-Key header; left empty,
+    # the router refuses every request rather than defaulting to open.
+    admin_api_key: str = ""
+
     model_path: str = "./ml/models/escood_pipeline.pkl"
     secondary_model_path: str = "./ml/models/flood_model.joblib"
     default_lat: float = 3.5952

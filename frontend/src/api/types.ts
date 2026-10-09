@@ -94,6 +94,22 @@ export interface WeatherForecastPoint {
   elevation_m?: number
 }
 
+export interface GlobalDisasterEvent {
+  id: number
+  type: string
+  title: string
+  description: string
+  country: string | null
+  alert_level: string | null
+  severity_text: string | null
+  lat: number
+  lng: number
+  from_date: string | null
+  to_date: string | null
+  is_current: boolean
+  url: string | null
+}
+
 export interface SyncBundle {
   region: string
   safe_zones: SafeZone[]

@@ -3,6 +3,27 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Background Sync API isn't in TypeScript's built-in webworker lib yet.
+interface SyncEvent extends ExtendableEvent {
+  readonly tag: string;
+}
+
+interface NotificationActionDescriptor {
+  action: string;
+  title: string;
+  icon?: string;
+}
+
+// ServiceWorkerRegistration.showNotification() accepts a richer options shape than
+// TypeScript's lib.dom NotificationOptions (written for the plain `new Notification()`
+// constructor) — add back the service-worker-only fields it's missing.
+interface ExtendedNotificationOptions extends NotificationOptions {
+  actions?: NotificationActionDescriptor[];
+  vibrate?: number[];
+  sound?: string;
+  priority?: string;
+}
+
 const CACHE_NAME = "bimoed-v1";
 const RUNTIME_CACHE = "bimoed-runtime";
 const IMAGE_CACHE = "bimoed-images";
@@ -165,7 +186,10 @@ self.addEventListener("message", (event: ExtendableMessageEvent) => {
 });
 
 // Background sync - sync data when back online
-self.addEventListener("sync", (event: any) => {
+// Cast needed because the Background Sync API's "sync" event isn't in TypeScript's
+// built-in ServiceWorkerGlobalScopeEventMap, so addEventListener falls back to its
+// generic Event-based overload.
+self.addEventListener("sync", ((event: SyncEvent) => {
   console.log("[ServiceWorker] Background sync event:", event.tag);
 
   if (event.tag === "sync-flood-reports") {
@@ -173,7 +197,7 @@ self.addEventListener("sync", (event: any) => {
   } else if (event.tag === "sync-sos-alerts") {
     event.waitUntil(syncSOSAlerts());
   }
-});
+}) as EventListener);
 
 async function syncFloodReports() {
   try {
@@ -221,8 +245,8 @@ self.addEventListener("push", (event: PushEvent) => {
   console.log("[ServiceWorker] Push received");
 
   const data = event.data?.json() || {};
-  const options: any = {
-    body: data.body || "BIMOED Alert",
+  const options: ExtendedNotificationOptions = {
+    body: data.body || "ESSTER Alert",
     icon: "/icon-192x192.png",
     badge: "/icon-192x192.png",
     tag: data.tag || "bimoed-notification",
@@ -242,7 +266,7 @@ self.addEventListener("push", (event: PushEvent) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "BIMOED Flood Alert", options)
+    self.registration.showNotification(data.title || "ESSTER Disaster Alert", options)
   );
 });
 

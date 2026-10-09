@@ -18,5 +18,5 @@ else
   PYTHON=".venv/bin/python"
 fi
 
-echo "Starting ESCOOD API on http://localhost:8000"
+echo "Starting ESSTER API on http://localhost:8000"
 exec "$PYTHON" -m uvicorn main:app --reload --port 8000

@@ -5,7 +5,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/")
 def home():
-    return {"message": "ESCOOD API Running", "version": "1.0.0"}
+    return {"message": "ESSTER API Running", "version": "1.0.0"}
 
 
 @router.get("/health")

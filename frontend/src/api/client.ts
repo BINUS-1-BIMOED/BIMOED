@@ -2,6 +2,7 @@ import { setCache, getCache } from '../utils/storage'
 import type {
   Alert,
   EvacuationRoute,
+  GlobalDisasterEvent,
   ReportPayload,
   ReportResponse,
   ReportValidation,
@@ -95,6 +96,21 @@ export async function peekCached<T>(path: string): Promise<T | null> {
 
 export function getRisk(lat: number, lng: number): Promise<RiskData> {
   return request(`/risk?lat=${lat}&lng=${lng}`)
+}
+
+// Google Maps JS API key for the map's 3D globe view — kept in the backend's .env
+// instead of the frontend build so it's not baked into the deployed bundle.
+export async function getMapsKey(): Promise<string> {
+  const { key } = await request<{ key: string }>('/config/maps-key')
+  return key
+}
+
+// Current natural disaster events worldwide (GDACS), for the globe's world view.
+export async function getGlobalDisasters(type?: string): Promise<GlobalDisasterEvent[]> {
+  const { events } = await request<{ events: GlobalDisasterEvent[] }>(
+    `/disasters${type ? `?type=${encodeURIComponent(type)}` : ''}`,
+  )
+  return events
 }
 
 export interface BackendWeatherData {

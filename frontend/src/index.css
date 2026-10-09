@@ -1083,10 +1083,7 @@ body {
   height: 100%;
   z-index: 0;
   font-family: var(--font-sans);
-}
-
-.gmaps-leaflet .leaflet-pane {
-  z-index: 1;
+  background: #e8eaed;
 }
 
 .gmaps-top-bar {
@@ -1143,9 +1140,25 @@ body {
   font-family: var(--font-sans);
 }
 
-.gmaps-layer-chips {
+.gmaps-mode-chips {
   position: absolute;
   top: 72px;
+  left: 12px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.gmaps-mode-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.gmaps-layer-chips {
+  position: absolute;
+  top: 116px;
   left: 12px;
   right: 12px;
   z-index: 500;
@@ -1177,6 +1190,69 @@ body {
   background: #1a73e8;
   color: white;
   box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+}
+
+.gmaps-disaster-menu {
+  position: absolute;
+  top: 116px;
+  left: 12px;
+  z-index: 500;
+}
+
+.gmaps-disaster-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: none;
+  background: white;
+  color: #3c4043;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.gmaps-disaster-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  background: white;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.gmaps-disaster-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  color: #3c4043;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.gmaps-disaster-menu-item:hover {
+  background: #f1f3f4;
+}
+
+.gmaps-disaster-menu-item.active {
+  background: #e8f0fe;
+  color: #1a73e8;
 }
 
 .gmaps-legend {
@@ -1923,14 +1999,23 @@ body {
 }
 
 /* Natural map overlays — soft blob edges instead of hard circles */
-.map-risk-blob,
-.map-rain-blob {
-  filter: blur(2px);
-  transition: fill-opacity 0.3s ease;
+.gmaps-leaflet canvas {
+  outline: none;
 }
 
-.leaflet-interactive.map-risk-blob:hover {
-  filter: blur(1px);
+.gmaps-globe-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 500;
+  max-width: 80%;
+  padding: 14px 18px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: center;
 }
 
 /* Rainy Map Marker */
@@ -2563,9 +2648,21 @@ body {
 [data-theme="dark"] .gmaps-legend,
 [data-theme="dark"] .gmaps-bottom-sheet,
 [data-theme="dark"] .gmaps-route-banner,
+[data-theme="dark"] .gmaps-disaster-menu-trigger,
+[data-theme="dark"] .gmaps-disaster-menu-panel,
+[data-theme="dark"] .gmaps-disaster-menu-item,
 [data-theme="dark"] .gmaps-safe-list {
   background: #292a2d;
   color: #e8eaed;
+}
+
+[data-theme="dark"] .gmaps-disaster-menu-item:hover {
+  background: #3c4043;
+}
+
+[data-theme="dark"] .gmaps-disaster-menu-item.active {
+  background: #3c4043;
+  color: #8ab4f8;
 }
 
 [data-theme="dark"] .gmaps-search-input,

@@ -1,6 +1,6 @@
-# ESCOOD Backend
+# ESSTER Backend
 
-FastAPI backend for flood prediction, community report validation, and evacuation routing.
+FastAPI backend for the ESSTER global disaster tracker — flood prediction, worldwide disaster events, community report validation, and evacuation routing.
 
 ## Quick start
 
@@ -56,6 +56,6 @@ API docs: http://localhost:8000/docs
 
 ```bash
 cd backend
-docker build -t escood-api .
-docker run -p 8000:8000 --env-file app/.env escood-api
+docker build -t esster-api .
+docker run -p 8000:8000 --env-file app/.env esster-api
 ```

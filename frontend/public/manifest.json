@@ -1,7 +1,7 @@
 {
-  "name": "BIMOED - Flood Early Warning System",
-  "short_name": "BIMOED",
-  "description": "AI-driven flood prediction, community validation, and evacuation guidance system",
+  "name": "ESSTER - Global Disaster Tracker",
+  "short_name": "ESSTER",
+  "description": "Global disaster tracker with AI-driven flood prediction, community validation, and evacuation guidance",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -40,14 +40,14 @@
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "BIMOED flood alert screen"
+      "label": "ESSTER flood alert screen"
     },
     {
       "src": "/screenshot-1280x720.png",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "BIMOED flood map view"
+      "label": "ESSTER flood map view"
     }
   ],
   "categories": ["emergency", "weather", "maps"],

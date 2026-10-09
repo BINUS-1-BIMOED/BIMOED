@@ -12,6 +12,12 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 validator = ReportValidator()
 storage = StorageService()
 
+# Public-facing upload: restrict to real image types and a sane size so an arbitrary
+# file (e.g. SVG/HTML with embedded script) can't be stored and served back from our
+# public photo URLs.
+ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_PHOTO_BYTES = 8 * 1024 * 1024  # 8 MB
+
 
 @router.post("", response_model=ReportResponse, status_code=201)
 async def create_report(
@@ -42,8 +48,14 @@ async def create_report_with_photo(
     photo: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
+    if photo.content_type not in ALLOWED_PHOTO_TYPES:
+        raise HTTPException(status_code=400, detail="Photo must be JPEG, PNG, or WEBP")
+
     content = await photo.read()
-    photo_url = storage.upload_report_photo(photo.filename or "photo.jpg", content, photo.content_type or "image/jpeg")
+    if len(content) > MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Photo must be smaller than 8 MB")
+
+    photo_url = storage.upload_report_photo(photo.filename or "photo.jpg", content, photo.content_type)
 
     report = Report(
         category=category,

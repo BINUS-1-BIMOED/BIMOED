@@ -4,6 +4,15 @@ from pathlib import Path
 
 from config import settings
 
+# Keyed by the content-types routers/reports.py validates against — the extension is
+# derived from this, never from the caller-supplied filename, so a mismatched or
+# malicious extension (e.g. "photo.svg" on an image/jpeg upload) can't end up stored.
+_EXTENSION_BY_CONTENT_TYPE = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+
 
 class StorageService:
     """Upload report photos to Supabase Storage or local fallback."""
@@ -22,7 +31,7 @@ class StorageService:
         self._local_dir.mkdir(parents=True, exist_ok=True)
 
     def upload_report_photo(self, filename: str, content: bytes, content_type: str) -> str:
-        ext = Path(filename).suffix or ".jpg"
+        ext = _EXTENSION_BY_CONTENT_TYPE.get(content_type, Path(filename).suffix or ".jpg")
         object_name = f"{uuid.uuid4().hex}{ext}"
 
         if self._client:

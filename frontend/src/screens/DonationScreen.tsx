@@ -188,7 +188,7 @@ export default function DonationScreen({ onNavigate }: DonationScreenProps) {
           >
             <img
               src={qrisImage}
-              alt="ESCOOD donation QRIS code"
+              alt="ESSTER donation QRIS code"
               style={{
                 width: '220px', maxWidth: '100%', borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)',
@@ -196,7 +196,7 @@ export default function DonationScreen({ onNavigate }: DonationScreenProps) {
             />
             <a
               href={qrisImage}
-              download="escood-donation-qris.jpeg"
+              download="esster-donation-qris.jpeg"
               className="btn-ghost"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
             >

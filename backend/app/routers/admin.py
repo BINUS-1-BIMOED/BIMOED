@@ -7,8 +7,9 @@ from services.data_storage import DataStorageService
 from services.feedback import FeedbackService
 from services.trust_score import TrustScoreService
 from models.report import Report
+from utils.auth import require_admin_key
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin_key)])
 
 
 @router.get("/analytics/overview")

@@ -10,7 +10,7 @@ interface ProfileScreenProps {
   onThemeChange: (theme: Theme) => void
 }
 
-export default function ProfileScreen({ onNavigate: _onNavigate, theme, onThemeChange }: ProfileScreenProps) {
+export default function ProfileScreen({ theme, onThemeChange }: ProfileScreenProps) {
   const [offlineMode, setOfflineMode] = useState(() => {
     return localStorage.getItem('bimoed-offline-mode') !== 'false'
   })
@@ -151,7 +151,7 @@ export default function ProfileScreen({ onNavigate: _onNavigate, theme, onThemeC
       </div>
 
       <div className="animate-fade-in" style={{ textAlign: 'center', padding: '8px 0 16px', animationDelay: '0.25s' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}>ESCOOD</p>
+        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}>ESSTER</p>
         <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>v1.0.0-beta · AAIH 2026</p>
       </div>
     </div>

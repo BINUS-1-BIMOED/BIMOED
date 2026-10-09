@@ -6,8 +6,7 @@ import OnboardingScreen from './screens/OnboardingScreen'
 import SOSModal from './components/SOSModal'
 import './index.css'
 
-// Loaded on first navigation instead of upfront — MapScreen alone pulls in
-// leaflet/react-leaflet, which is the single heaviest chunk in the app.
+// Loaded on first navigation instead of upfront so the home screen doesn't wait on it.
 const MapScreen = lazy(() => import('./screens/MapScreen'))
 const AlertScreen = lazy(() => import('./screens/AlertScreen'))
 const ReportScreen = lazy(() => import('./screens/ReportScreen'))

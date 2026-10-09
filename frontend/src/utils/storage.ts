@@ -44,7 +44,9 @@ export async function setCache<T>(key: string, data: T, ttlMs = 5 * 60 * 1000): 
     console.warn('IndexedDB write failed, falling back to localStorage:', e)
     try {
       localStorage.setItem(`bimoed-cache-${key}`, JSON.stringify({ data, timestamp: Date.now(), ttl: ttlMs }))
-    } catch {}
+    } catch {
+      // Both storage backends unavailable (e.g. private browsing) — give up silently.
+    }
   }
 }
 
@@ -91,7 +93,9 @@ export async function clearAllCache(): Promise<void> {
     // Also clear localStorage fallback
     const keys = Object.keys(localStorage).filter(k => k.startsWith('bimoed-cache-'))
     keys.forEach(k => localStorage.removeItem(k))
-  } catch {}
+  } catch {
+    // Nothing cached (or storage unavailable) — nothing to clear.
+  }
 }
 
 // --- Last Position Persistence ---
@@ -119,11 +123,13 @@ export async function saveLastPosition(lat: number, lng: number): Promise<void> 
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error)
     })
-  } catch (e) {
-    // localStorage fallback
+  } catch {
+    // IndexedDB unavailable — localStorage fallback
     try {
       localStorage.setItem('bimoed-last-position', JSON.stringify({ lat, lng }))
-    } catch {}
+    } catch {
+      // Both storage backends unavailable (e.g. private browsing) — give up silently.
+    }
   }
 }
 
