@@ -15,6 +15,13 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Pin the driver explicitly rather than let SQLAlchemy pick a default — newer
+# SQLAlchemy releases (2.1+) prefer the psycopg (v3) driver for a bare
+# "postgresql://" URL, which isn't installed here (only psycopg2-binary is),
+# causing a ModuleNotFoundError at startup instead of actually connecting.
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 _engine_kwargs = {"pool_pre_ping": True}
 if not DATABASE_URL.startswith("sqlite"):
     _engine_kwargs.update(pool_size=5, max_overflow=10, pool_recycle=1800)
