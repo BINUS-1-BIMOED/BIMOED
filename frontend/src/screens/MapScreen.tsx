@@ -193,7 +193,6 @@ function DisasterTypeMenu({ value, onChange }: { value: string; onChange: (id: s
   return (
     <div className="gmaps-disaster-menu" ref={rootRef}>
       <button className="gmaps-disaster-menu-trigger" onClick={() => setOpen((o) => !o)}>
-        <span>{current.emoji}</span>
         <span>{current.label}</span>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
@@ -213,7 +212,6 @@ function DisasterTypeMenu({ value, onChange }: { value: string; onChange: (id: s
                 setOpen(false)
               }}
             >
-              <span>{t.emoji}</span>
               <span>{t.label}</span>
             </button>
           ))}
