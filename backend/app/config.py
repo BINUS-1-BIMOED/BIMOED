@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # the router refuses every request rather than defaulting to open.
     admin_api_key: str = ""
 
-    model_path: str = "./ml/models/escood_pipeline.pkl"
+    model_path: str = "./ml/models/esster_pipeline.pkl"
     secondary_model_path: str = "./ml/models/flood_model.joblib"
     default_lat: float = 3.5952
     default_lng: float = 98.6722

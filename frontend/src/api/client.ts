@@ -40,6 +40,17 @@ interface RequestOptions extends RequestInit {
   cacheable?: boolean
 }
 
+// Thrown for any non-2xx API response. Carries the real HTTP status so callers can
+// branch on it (e.g. 429 = cooldown) instead of matching substrings in the message.
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   const { cacheable, ...fetchInit } = init ?? {}
   const bodyKey = typeof fetchInit.body === 'string' ? `:${fetchInit.body}` : ''
@@ -56,8 +67,17 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
       ...fetchInit,
     })
     if (!res.ok) {
-      const detail = await res.text().catch(() => res.statusText)
-      throw new Error(detail || `Request failed (${res.status})`)
+      const raw = await res.text().catch(() => '')
+      // FastAPI error bodies are {"detail": "..."} — surface that clean message
+      // instead of the raw JSON text when present.
+      let message = raw || res.statusText || `Request failed (${res.status})`
+      try {
+        const parsed = JSON.parse(raw)
+        if (typeof parsed?.detail === 'string') message = parsed.detail
+      } catch {
+        // Not JSON — use the raw text as-is.
+      }
+      throw new ApiError(message, res.status)
     }
     const data = (await res.json()) as T
 

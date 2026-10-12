@@ -1,7 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import { getAlerts, isOnline } from './api/client'
 import { useLocation } from './hooks/useLocation'
-import HomeScreen from './screens/HomeScreen'
 import OnboardingScreen from './screens/OnboardingScreen'
 import SOSModal from './components/SOSModal'
 import './index.css'
@@ -30,16 +29,6 @@ const NAV_ITEMS = [
   {
     id: 'home',
     label: 'Home',
-    icon: (active: boolean) => (
-      <svg width="20" height="20" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-    )
-  },
-  {
-    id: 'map',
-    label: 'Map',
     icon: (active: boolean) => (
       <svg width="20" height="20" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
         <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
@@ -90,7 +79,7 @@ export default function App() {
   const [sosModalOpen, setSosModalOpen] = useState(false)
   const [appOffline, setAppOffline] = useState(!isOnline())
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('escood-theme')
+    const saved = localStorage.getItem('esster-theme')
     return saved === 'light' || saved === 'dark' ? saved : 'dark'
   })
 
@@ -106,7 +95,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('escood-theme', theme)
+    localStorage.setItem('esster-theme', theme)
   }, [theme])
 
   useEffect(() => {
@@ -135,8 +124,10 @@ export default function App() {
     }
   }
 
-  const isMapScreen = ['map', 'route', 'safe'].includes(screen)
-  const activeNav = isMapScreen ? 'map'
+  // The map (global disaster tracker) is now the app's home/landing screen —
+  // 'home' renders it exactly like 'map'/'route'/'safe' used to.
+  const isMapScreen = ['home', 'map', 'route', 'safe'].includes(screen)
+  const activeNav = isMapScreen ? 'home'
     : screen === 'contacts' ? 'profile'
     : screen
 
@@ -150,7 +141,6 @@ export default function App() {
       )
     }
     switch (screen) {
-      case 'home': return <HomeScreen onNavigate={navigate}/>
       case 'alert': return <Suspense fallback={<ScreenFallback />}><AlertScreen onNavigate={navigate}/></Suspense>
       case 'report': return <Suspense fallback={<ScreenFallback />}><ReportScreen onNavigate={navigate}/></Suspense>
       case 'profile':
@@ -160,7 +150,11 @@ export default function App() {
         </Suspense>
       )
       case 'donation': return <Suspense fallback={<ScreenFallback />}><DonationScreen onNavigate={navigate}/></Suspense>
-      default: return <HomeScreen onNavigate={navigate}/>
+      default: return (
+        <Suspense fallback={<ScreenFallback />}>
+          <MapScreen onNavigate={navigate} initialMode="risk" />
+        </Suspense>
+      )
     }
   }
 

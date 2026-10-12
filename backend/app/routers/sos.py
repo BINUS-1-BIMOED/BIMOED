@@ -66,12 +66,14 @@ async def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
                 detail=f"SOS cooldown active. Please wait {COOLDOWN_MINUTES} minutes before submitting another alert.",
             )
 
-    # SOS only needs a coarse "is it risky right now near here" gate, not the full
-    # map-resolution grid — a smaller sample and a single hour_offset skip most of
-    # the (network-bound) elevation lookups, cutting submission latency well below
-    # the full grid used by the map view. And since weather/elevation providers are
-    # external, the whole check is time-boxed: if they're slow or down, we let the
-    # SOS through rather than stall someone in danger waiting on a risk score.
+    # SOS must never be refused: a person submitting one is, by definition, asking
+    # for help, regardless of what an automated flood-risk model thinks of their
+    # location — the model can be wrong, and the emergency may not even be flood-
+    # related. The risk check below is triage context for responders only, attached
+    # to the alert description, and is never allowed to block the submission. It's
+    # also time-boxed, since weather/elevation providers are external and slow or
+    # down should never stall someone in danger waiting on a risk score.
+    risk_note = ""
     try:
         risk_points = await asyncio.wait_for(
             weather_service.build_risk_grid(db, payload.lat, payload.lng, count=8, hour_offsets=(0,)),
@@ -79,15 +81,9 @@ async def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
         )
         max_risk = max((p["score"] for p in risk_points), default=0)
         max_rain = max((p.get("rainfall_mm", 0) for p in risk_points), default=0)
+        risk_note = f" [Flood risk at location: {max_risk:.0f}/100, rainfall {max_rain:.1f}mm]"
     except asyncio.TimeoutError:
-        logger.warning("SOS risk check timed out at (%s, %s) — allowing submission through", payload.lat, payload.lng)
-        max_risk, max_rain = 100.0, 0.0  # skip the gate below; don't block an emergency on a slow API
-
-    if max_risk < 35 and max_rain < 1.0:
-        raise HTTPException(
-            status_code=400,
-            detail="SOS can only be submitted in flood-risk areas (risk score >= 35 or active rainfall)",
-        )
+        logger.warning("SOS risk check timed out at (%s, %s) — proceeding without a risk note", payload.lat, payload.lng)
 
     sos = SOS(**payload.model_dump())
     db.add(sos)
@@ -104,6 +100,7 @@ async def create_sos(payload: SOSCreate, db: Session = Depends(get_db)):
             f"Age: {payload.age}. "
             f"{'Person with disability. ' if payload.is_disabled else ''}"
             f"{payload.description or 'Immediate assistance required.'}"
+            f"{risk_note}"
         ),
     )
     db.add(alert)

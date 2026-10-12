@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import floodLogo from '../assets/6.png'; // Assuming 6.png is in the assets folder
+import floodLogo from '../assets/6.jpg'
 
 interface OnboardingScreenProps {
   onComplete: () => void

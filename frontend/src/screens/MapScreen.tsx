@@ -846,9 +846,10 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
 
       {/* ---- Top Bar ---- */}
       <div className="gmaps-top-bar">
-        <button className="gmaps-round-btn" onClick={() => onNavigate('home')} aria-label="Back">
-          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <polyline points="15 18 9 12 15 6"/>
+        <button className="gmaps-round-btn" onClick={() => onNavigate('profile')} aria-label="Profile">
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
           </svg>
         </button>
         <div className="gmaps-search-pill">
@@ -1124,7 +1125,7 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
               )}
               {selectedDisaster.from_date && (
                 <p className="gmaps-sheet-sub">
-                  Sejak {new Date(selectedDisaster.from_date).toLocaleDateString('id-ID')}
+                  Since {new Date(selectedDisaster.from_date).toLocaleDateString('en-US')}
                 </p>
               )}
             </div>
@@ -1138,7 +1139,7 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
               rel="noreferrer"
               style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
             >
-              Lihat laporan GDACS
+              View GDACS report
             </a>
           )}
         </div>

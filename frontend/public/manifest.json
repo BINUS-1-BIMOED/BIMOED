@@ -1,7 +1,7 @@
 {
   "name": "ESSTER - Global Disaster Tracker",
   "short_name": "ESSTER",
-  "description": "Global disaster tracker with AI-driven flood prediction, community validation, and evacuation guidance",
+  "description": "Real-time global disaster tracker covering floods, earthquakes, wildfires, cyclones, volcanic activity, and droughts, with AI-driven flood prediction, community validation, and evacuation guidance",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -34,32 +34,16 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-540x720.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "ESSTER flood alert screen"
-    },
-    {
-      "src": "/screenshot-1280x720.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "ESSTER flood map view"
-    }
-  ],
   "categories": ["emergency", "weather", "maps"],
   "shortcuts": [
     {
-      "name": "View Flood Map",
+      "name": "View Global Disaster Map",
       "short_name": "Map",
-      "description": "Quickly view the flood risk map",
+      "description": "Open the live global disaster map",
       "url": "/?view=map",
       "icons": [
         {
-          "src": "/icon-map-192x192.png",
+          "src": "/icon-192x192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -72,7 +56,7 @@
       "url": "/?view=report",
       "icons": [
         {
-          "src": "/icon-report-192x192.png",
+          "src": "/icon-192x192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -85,7 +69,7 @@
       "url": "/?action=sos",
       "icons": [
         {
-          "src": "/icon-sos-192x192.png",
+          "src": "/icon-192x192.png",
           "sizes": "192x192",
           "type": "image/png"
         }

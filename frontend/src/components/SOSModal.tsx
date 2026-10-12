@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { submitSOS } from '../api/client'
+import { ApiError, submitSOS } from '../api/client'
 import type { SOSPayload } from '../api/types'
 import { useLocation } from '../hooks/useLocation'
 
@@ -9,8 +9,15 @@ interface SOSModalProps {
   onSuccess: () => void
 }
 
+const EMERGENCY_NUMBERS = [
+  { label: 'BPBD Medan', number: '061-451-1234' },
+  { label: 'National Emergency', number: '112' },
+  { label: 'Police', number: '110' },
+  { label: 'Fire & Rescue', number: '113' },
+]
+
 export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) {
-  const { lat, lng } = useLocation()
+  const { lat, lng, loading: locating, accuracy } = useLocation()
   const [step, setStep] = useState<'form' | 'submitting' | 'success' | 'error'>('form')
   const [error, setError] = useState<string>('')
   const [cooldownError, setCooldownError] = useState(false)
@@ -33,6 +40,13 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
       return
     }
 
+    // An SOS sent against the fallback city-center coordinates (no real GPS fix
+    // yet) could send help to the wrong place — worth one extra second's wait.
+    if (locating) {
+      setError('Still getting your exact location — please wait a moment and try again.')
+      return
+    }
+
     setStep('submitting')
     setError('')
 
@@ -44,7 +58,7 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
         is_disabled: isDisabled,
         urgency,
         description: description.trim() || undefined,
-        user_id: localStorage.getItem('escood-user-id') || undefined,
+        user_id: localStorage.getItem('esster-user-id') || undefined,
       }
 
       await submitSOS(payload)
@@ -52,16 +66,17 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
       setTimeout(() => {
         onSuccess()
         handleClose()
-      }, 2000)
+      }, 2500)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      if (msg.includes('cooldown')) {
+      if (err instanceof ApiError && err.status === 429) {
         setCooldownError(true)
         setError('You recently submitted an SOS alert. Please wait 5 minutes before submitting another.')
-      } else if (msg.includes('flood-risk')) {
-        setError('SOS can only be submitted in flood-risk areas. Your current location is not in a risk zone.')
+      } else if (err instanceof ApiError) {
+        setError(err.message)
+      } else if (err instanceof Error && err.name === 'AbortError') {
+        setError('The request timed out. If you are in immediate danger, call emergency services directly.')
       } else {
-        setError(`Error: ${msg}`)
+        setError('Could not reach the server. If you are in immediate danger, call emergency services directly.')
       }
       setStep('error')
     }
@@ -155,13 +170,21 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
                 />
               </div>
 
+              <p className="form-hint">
+                {locating
+                  ? '📍 Getting your exact location…'
+                  : accuracy != null
+                    ? `📍 Location ready (±${Math.round(accuracy)}m accuracy)`
+                    : '📍 Location ready'}
+              </p>
+
               {error && <div className="form-error">{error}</div>}
 
               <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={handleClose}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-danger">
+                <button type="submit" className="btn-danger" disabled={locating}>
                   Send SOS Alert
                 </button>
               </div>
@@ -181,8 +204,16 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
             <svg width="64" height="64" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <h3>SOS Alert Terkirim!</h3>
-            <p>Lokasi Anda telah dicatat dan alert darurat dibuat. Hubungi BPBD Medan (061-451-1234) atau layanan darurat 112/110/113 jika perlu.</p>
+            <h3>SOS Alert Sent</h3>
+            <p>Your location has been recorded and an emergency alert has been created. If you need immediate help, also call one of these numbers:</p>
+            <div className="sos-emergency-numbers">
+              {EMERGENCY_NUMBERS.map((n) => (
+                <a key={n.number} className="sos-emergency-number" href={`tel:${n.number.replace(/-/g, '')}`}>
+                  <strong>{n.label}</strong>
+                  <span>{n.number}</span>
+                </a>
+              ))}
+            </div>
           </div>
         )}
 
@@ -193,11 +224,26 @@ export default function SOSModal({ isOpen, onClose, onSuccess }: SOSModalProps) 
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <h3>{cooldownError ? 'Alert Cooldown' : 'Error'}</h3>
+            <h3>{cooldownError ? 'Alert Cooldown' : 'Could Not Send Alert'}</h3>
             <p>{error}</p>
-            <button className="btn-primary" onClick={handleClose}>
-              Dismiss
-            </button>
+            <div className="sos-emergency-numbers">
+              {EMERGENCY_NUMBERS.map((n) => (
+                <a key={n.number} className="sos-emergency-number" href={`tel:${n.number.replace(/-/g, '')}`}>
+                  <strong>{n.label}</strong>
+                  <span>{n.number}</span>
+                </a>
+              ))}
+            </div>
+            <div className="form-actions">
+              {!cooldownError && (
+                <button className="btn-secondary" onClick={() => setStep('form')}>
+                  Try Again
+                </button>
+              )}
+              <button className="btn-primary" onClick={handleClose}>
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
       </div>
