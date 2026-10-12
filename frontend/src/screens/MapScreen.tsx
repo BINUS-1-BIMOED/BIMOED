@@ -44,14 +44,14 @@ const REPORT_EMOJI: Record<string, string> = {
 // Global disaster types the backend's /disasters endpoint can return — flood/wildfire/
 // cyclone/volcano/drought come from GDACS; earthquake merges GDACS with P2P Earthquake
 // Information's real-time Japan feed. "all" asks the backend for everything at once.
-const DISASTER_TYPES: { id: string; label: string; emoji: string }[] = [
-  { id: 'all', label: 'Semua Bencana', emoji: '🌐' },
-  { id: 'flood', label: 'Banjir', emoji: '🌊' },
-  { id: 'earthquake', label: 'Gempa Bumi', emoji: '🫨' },
-  { id: 'wildfire', label: 'Kebakaran Hutan', emoji: '🔥' },
-  { id: 'cyclone', label: 'Siklon / Topan', emoji: '🌀' },
-  { id: 'volcano', label: 'Gunung Berapi', emoji: '🌋' },
-  { id: 'drought', label: 'Kekeringan', emoji: '☀️' },
+const DISASTER_TYPES: { id: string; label: string;}[] = [
+  { id: 'all', label: 'All disasters'},
+  { id: 'flood', label: 'Flood'},
+  { id: 'earthquake', label: 'Earthquake'},
+  { id: 'wildfire', label: 'Wildfire'},
+  { id: 'cyclone', label: 'Cyclone / Storm'},
+  { id: 'volcano', label: 'Volcano'},
+  { id: 'drought', label: 'Drought'},
 ]
 
 const DISASTER_EMOJI: Record<string, string> = {
@@ -870,10 +870,10 @@ export default function MapScreen({ onNavigate, initialMode = 'risk' }: MapScree
       {!isNavigating && (
         <div className="gmaps-mode-chips">
           <button className={`gmaps-chip ${globalMode ? 'active' : ''}`} onClick={() => setGlobalMode(true)}>
-            🌍 Dunia
+            🌍 World
           </button>
           <button className={`gmaps-chip ${!globalMode ? 'active' : ''}`} onClick={() => setGlobalMode(false)}>
-            📍 Lokal
+            📍 Local
           </button>
         </div>
       )}
