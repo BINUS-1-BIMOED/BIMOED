@@ -5,8 +5,9 @@ import OnboardingScreen from './screens/OnboardingScreen'
 import SOSModal from './components/SOSModal'
 import './index.css'
 
-// Loaded on first navigation instead of upfront so the home screen doesn't wait on it.
+// Loaded on first navigation instead of upfront so the landing screen doesn't wait on it.
 const MapScreen = lazy(() => import('./screens/MapScreen'))
+const HomeScreen = lazy(() => import('./screens/HomeScreen'))
 const AlertScreen = lazy(() => import('./screens/AlertScreen'))
 const ReportScreen = lazy(() => import('./screens/ReportScreen'))
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen'))
@@ -18,7 +19,7 @@ const ScreenFallback = () => (
   </div>
 )
 
-type Screen = 'home' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile' | 'donation'
+type Screen = 'home' | 'dashboard' | 'map' | 'alert' | 'report' | 'safe' | 'route' | 'contacts' | 'profile' | 'donation'
 
 // Only 'donation' currently has a real URL — everything else stays purely
 // in-memory state, matching how the app already worked.
@@ -34,6 +35,16 @@ const NAV_ITEMS = [
         <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
         <line x1="8" y1="2" x2="8" y2="18"/>
         <line x1="16" y1="6" x2="16" y2="22"/>
+      </svg>
+    )
+  },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: (active: boolean) => (
+      <svg width="20" height="20" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
     )
   },
@@ -114,7 +125,7 @@ export default function App() {
   }, [])
 
   const navigate = (s: string) => {
-    const valid: Screen[] = ['home', 'map', 'alert', 'report', 'safe', 'route', 'contacts', 'profile', 'donation']
+    const valid: Screen[] = ['home', 'dashboard', 'map', 'alert', 'report', 'safe', 'route', 'contacts', 'profile', 'donation']
     if (valid.includes(s as Screen)) {
       setScreen(s as Screen)
       const path = s === 'donation' ? '/donation' : '/'
@@ -141,6 +152,7 @@ export default function App() {
       )
     }
     switch (screen) {
+      case 'dashboard': return <Suspense fallback={<ScreenFallback />}><HomeScreen onNavigate={navigate}/></Suspense>
       case 'alert': return <Suspense fallback={<ScreenFallback />}><AlertScreen onNavigate={navigate}/></Suspense>
       case 'report': return <Suspense fallback={<ScreenFallback />}><ReportScreen onNavigate={navigate}/></Suspense>
       case 'profile':
